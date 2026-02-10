@@ -4,19 +4,13 @@ import * as THREE from 'three'
 import { useDebug } from '../../state/debug-context.tsx'
 import { useEcosystem } from '../../state/ecosystem-context.tsx'
 
-// ─── Absurd pool sizes ───────────────────────────────────────
-/** Blood droplet particles — absurd amounts */
-const DROPLET_POOL = 1200
-/** Ground splat pool */
-const SPLAT_POOL = 200
-/** Droplets spawned per kill event */
-const DROPLETS_PER_KILL = 400
-/** Ground splats per kill */
-const SPLATS_PER_KILL = 50
-/** Droplet lifetime */
-const DROPLET_LIFE = 2.5
-/** Splat lifetime (linger on the ground) */
-const SPLAT_LIFE = 5.0
+// ─── Particle pool sizes ─────────────────────────────────────
+const DROPLET_POOL = 80
+const SPLAT_POOL = 15
+const DROPLETS_PER_KILL = 25
+const SPLATS_PER_KILL = 4
+const DROPLET_LIFE = 1.2
+const SPLAT_LIFE = 2.0
 
 // ─── Blood droplet shaders ──────────────────────────────────
 
@@ -266,7 +260,7 @@ export default function BloodEffects() {
     while (killQueue.current.length > 0) {
       const [kx, ky, kz] = killQueue.current.shift()!
 
-      // SPRAY BLOOD EVERYWHERE
+      // Small puff of particles
       for (let i = 0; i < DROPLETS_PER_KILL; i++) {
         const di = nextDroplet.current % DROPLET_POOL
         nextDroplet.current++
@@ -276,19 +270,18 @@ export default function BloodEffects() {
         d.age = 0
         d.maxAge = DROPLET_LIFE * (0.4 + Math.random())
 
-        d.x = kx + (Math.random() - 0.5) * 0.4
-        d.y = ky + Math.random() * 0.4
-        d.z = kz + (Math.random() - 0.5) * 0.4
+        d.x = kx + (Math.random() - 0.5) * 0.3
+        d.y = ky + Math.random() * 0.3
+        d.z = kz + (Math.random() - 0.5) * 0.3
 
-        // Explosive omnidirectional spray
         const theta = Math.random() * Math.PI * 2
-        const phi = Math.random() * Math.PI * 0.85
-        const speed = 2 + Math.random() * 10
+        const phi = Math.random() * Math.PI * 0.6
+        const speed = 1 + Math.random() * 3
         d.vx = Math.sin(phi) * Math.cos(theta) * speed
-        d.vy = Math.cos(phi) * speed * 0.9 + Math.random() * 5
+        d.vy = Math.cos(phi) * speed * 0.6 + Math.random() * 2
         d.vz = Math.sin(phi) * Math.sin(theta) * speed
 
-        d.size = 0.1 + Math.random() * 0.45
+        d.size = 0.08 + Math.random() * 0.2
 
         const [cr, cg, cb] = randomBloodColor()
         d.r = cr
@@ -296,18 +289,18 @@ export default function BloodEffects() {
         d.b = cb
       }
 
-      // Ground splats at kill zone
+      // Small ground marks
       for (let i = 0; i < SPLATS_PER_KILL; i++) {
         const si = nextSplat.current % SPLAT_POOL
         nextSplat.current++
         const s = splats.current[si]
         s.active = true
         s.age = 0
-        s.maxAge = SPLAT_LIFE * (0.5 + Math.random() * 0.8)
-        s.x = kx + (Math.random() - 0.5) * 4.0
+        s.maxAge = SPLAT_LIFE * (0.5 + Math.random() * 0.5)
+        s.x = kx + (Math.random() - 0.5) * 1.5
         s.y = 0.02
-        s.z = kz + (Math.random() - 0.5) * 4.0
-        s.scale = 0.3 + Math.random() * 1.5
+        s.z = kz + (Math.random() - 0.5) * 1.5
+        s.scale = 0.15 + Math.random() * 0.4
         const [cr, cg, cb] = randomBloodColor()
         s.r = cr
         s.g = cg

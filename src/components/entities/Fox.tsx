@@ -8,6 +8,9 @@ import {
   MAX_SPEED_FOX,
   NEED_THRESHOLD,
   WORLD_SIZE,
+  FOX_MATE_RADIUS,
+  FOX_MATING_COOLDOWN,
+  FOX_HUNT_THRESHOLD,
   getSightMultiplier,
 } from '../../types/ecosystem.ts'
 import { ALL_OBSTACLES } from '../../data/obstacles.ts'
@@ -24,6 +27,8 @@ interface FoxProps {
   data: FoxState
 }
 
+const MATING_PAUSE_DURATION = 2.5
+
 export default function Fox({ data }: FoxProps) {
   const groupRef = useRef<Group>(null!)
   const state = useEcosystem()
@@ -33,6 +38,14 @@ export default function Fox({ data }: FoxProps) {
   const position = useRef(new Vector3(...data.position))
   const velocity = useRef(new Vector3(...data.velocity))
   const syncTimer = useRef(0)
+
+  // Reproductive state
+  const pregnantRef = useRef(data.pregnant)
+  const matingCooldownRef = useRef(0)
+  const matingPauseRef = useRef(0)
+
+  // Sync pregnancy from state
+  pregnantRef.current = data.pregnant
 
   // Debug intention tracking
   const intentionRef = useRef('Wandering')
@@ -53,7 +66,7 @@ export default function Fox({ data }: FoxProps) {
     entityType: 'fox',
     hunger: data.hunger,
     thirst: data.thirst,
-    hungerRate: 0.016,
+    hungerRate: 0.005,
   })
 
   const tempForce = useMemo(() => new Vector3(), [])
@@ -67,11 +80,37 @@ export default function Fox({ data }: FoxProps) {
     const needs = tickNeeds(delta)
     if (needs.dead) return
 
+    // Decrement mating cooldown
+    if (matingCooldownRef.current > 0) {
+      matingCooldownRef.current = Math.max(0, matingCooldownRef.current - delta)
+    }
+
     const pos = position.current
     const vel = velocity.current
     const effectiveAggroRadius = AGGRO_RADIUS * getSightMultiplier(state.timeOfDay)
     effectiveSightRef.current = effectiveAggroRadius
     tempForce.set(0, 0, 0)
+
+    // ── MATING PAUSE: stand still briefly ──
+    if (matingPauseRef.current > 0) {
+      matingPauseRef.current -= delta
+      vel.set(0, 0, 0)
+      intentionRef.current = 'Mating'
+      intentionTargetRef.current = null
+      groupRef.current.position.set(pos.x, 0.5, pos.z)
+      syncTimer.current += delta
+      if (syncTimer.current > 0.5) {
+        syncTimer.current = 0
+        dispatch({
+          type: 'UPDATE_ENTITY_POSITION',
+          id: data.id,
+          entityType: 'fox',
+          position: [pos.x, 0.5, pos.z],
+          velocity: [0, 0, 0],
+        })
+      }
+      return
+    }
 
     // ── 1. CHASE: hunt rabbits in aggro radius ──
     const nearbyRabbits = entitiesInRadius(
@@ -80,7 +119,7 @@ export default function Fox({ data }: FoxProps) {
       state.rabbits,
     )
 
-    if (nearbyRabbits.length > 0 && hungerRef.current < 0.6) {
+    if (nearbyRabbits.length > 0 && hungerRef.current < FOX_HUNT_THRESHOLD) {
       const nearest = findNearest([pos.x, pos.y, pos.z], nearbyRabbits)
       if (nearest) {
         tempTarget.set(...nearest.position)
@@ -89,17 +128,45 @@ export default function Fox({ data }: FoxProps) {
         intentionRef.current = 'Chasing rabbit!'
         intentionTargetRef.current = tempTarget.clone()
 
-        // Catch rabbit
-        if (pos.distanceTo(tempTarget) < 0.5) {
+        // Catch rabbit (larger catch radius = pounce)
+        if (pos.distanceTo(tempTarget) < 1.0) {
           spawnBlood(pos.x, 0.5, pos.z)
           dispatch({ type: 'REMOVE_RABBIT', id: nearest.id })
+          const mealValue = 0.7
+          hungerRef.current = Math.min(1, hungerRef.current + mealValue)
           dispatch({
             type: 'UPDATE_ENTITY_NEEDS',
             id: data.id,
             entityType: 'fox',
-            hunger: Math.min(1, hungerRef.current + 0.45),
+            hunger: hungerRef.current,
             thirst: needs.thirst,
           })
+
+          // Pregnant female gives birth when eating
+          if (pregnantRef.current && data.sex === 'female') {
+            pregnantRef.current = false
+            const babyPos: [number, number, number] = [
+              pos.x + (Math.random() - 0.5) * 3,
+              0,
+              pos.z + (Math.random() - 0.5) * 3,
+            ]
+            dispatch({
+              type: 'SPAWN_FOX',
+              fox: {
+                id: `fox_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+                type: 'fox',
+                position: babyPos,
+                velocity: [0, 0, 0],
+                hunger: 0.8,
+                thirst: 0.8,
+                behavior: 'wandering',
+                alive: true,
+                targetId: null,
+                sex: Math.random() > 0.5 ? 'male' : 'female',
+                pregnant: false,
+              },
+            })
+          }
         }
       }
 
@@ -115,7 +182,52 @@ export default function Fox({ data }: FoxProps) {
         dispatch({ type: 'DRINK', entityId: data.id, entityType: 'fox' })
       }
 
-    // ── 3. WANDER ──
+    // ── 3. SEEK MATE: well-fed, adult, not pregnant, cooldown expired ──
+    } else if (
+      !pregnantRef.current &&
+      matingCooldownRef.current <= 0 &&
+      hungerRef.current > 0.65 &&
+      thirstRef.current > NEED_THRESHOLD
+    ) {
+      const eligibleMates = state.foxes.filter(
+        f =>
+          f.id !== data.id &&
+          f.alive &&
+          !f.pregnant &&
+          f.sex !== data.sex,
+      )
+      const nearbyMates = entitiesInRadius(
+        [pos.x, pos.y, pos.z],
+        FOX_MATE_RADIUS,
+        eligibleMates,
+      )
+
+      if (nearbyMates.length > 0) {
+        const nearestMate = findNearest([pos.x, pos.y, pos.z], nearbyMates)
+        if (nearestMate) {
+          tempTarget.set(...nearestMate.position)
+          tempForce.add(seek(pos, vel, tempTarget))
+          intentionRef.current = 'Seeking mate'
+          intentionTargetRef.current = tempTarget.clone()
+
+          // Close enough to mate — only males initiate
+          if (pos.distanceTo(tempTarget) < 1.2 && data.sex === 'male') {
+            matingCooldownRef.current = FOX_MATING_COOLDOWN
+            matingPauseRef.current = MATING_PAUSE_DURATION
+            dispatch({
+              type: 'FOX_MATE',
+              maleId: data.id,
+              femaleId: nearestMate.id,
+            })
+          }
+        }
+      } else {
+        tempForce.add(wander(pos, vel))
+        intentionRef.current = 'Wandering'
+        intentionTargetRef.current = null
+      }
+
+    // ── 4. WANDER ──
     } else {
       tempForce.add(wander(pos, vel))
       intentionRef.current = 'Wandering'

@@ -53,16 +53,18 @@ function generateRabbits(count: number): RabbitState[] {
 }
 
 function generateFoxes(count: number): FoxState[] {
-  return Array.from({ length: count }, () => ({
+  return Array.from({ length: count }, (_, i) => ({
     id: uid('fox'),
     type: 'fox' as const,
     position: randomPosition(),
     velocity: [0, 0, 0] as [number, number, number],
-    hunger: 0.6 + Math.random() * 0.4,
+    hunger: 0.8 + Math.random() * 0.2,
     thirst: 0.5 + Math.random() * 0.5,
     behavior: 'wandering' as const,
     alive: true,
     targetId: null,
+    sex: (i % 2 === 0 ? 'male' : 'female') as 'male' | 'female',
+    pregnant: false,
   }))
 }
 
@@ -89,7 +91,7 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
         paused: false,
         weather: { type: 'sunny', intensity: 0, nextChangeAt: WEATHER_CHANGE_INTERVAL },
         timeOfDay: 0.15,
-        speed: 1,
+        speed: state.speed,
         gameOver: false,
       }
 
@@ -168,7 +170,7 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
           const newMeals = r.mealsEaten + 1
           return {
             ...r,
-            hunger: Math.min(1, r.hunger + 0.4),
+            hunger: Math.min(1, r.hunger + 0.6),
             behavior: 'eating' as const,
             pregnant: false,
             isAdult: r.isAdult || newMeals >= 2,
@@ -212,12 +214,26 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
         ...state,
         rabbits: state.rabbits.map(r => {
           if (r.id === action.femaleId) {
-            return { ...r, pregnant: true, hunger: Math.max(0, r.hunger - 0.2) }
+            return { ...r, pregnant: true, hunger: Math.max(0, r.hunger - 0.08) }
           }
           if (r.id === action.maleId) {
-            return { ...r, hunger: Math.max(0, r.hunger - 0.2) }
+            return { ...r, hunger: Math.max(0, r.hunger - 0.08) }
           }
           return r
+        }),
+      }
+
+    case 'FOX_MATE':
+      return {
+        ...state,
+        foxes: state.foxes.map(f => {
+          if (f.id === action.femaleId) {
+            return { ...f, pregnant: true, hunger: Math.max(0, f.hunger - 0.10) }
+          }
+          if (f.id === action.maleId) {
+            return { ...f, hunger: Math.max(0, f.hunger - 0.10) }
+          }
+          return f
         }),
       }
 
@@ -244,9 +260,9 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
 // ─── Initial State ──────────────────────────────────────────
 
 const defaultConfig: SimulationConfig = {
-  initialRabbits: 15,
-  initialFoxes: 7,
-  initialFlowers: 80,
+  initialRabbits: 20,
+  initialFoxes: 4,
+  initialFlowers: 90,
 }
 
 const initialState: EcosystemState = {
@@ -296,6 +312,12 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         break
       case 'RABBIT_MATE':
         event = { time: t, type: 'mate', detail: 'Rabbits mated' }
+        break
+      case 'SPAWN_FOX':
+        event = { time: t, type: 'birth', detail: `Fox born (${action.fox.sex})` }
+        break
+      case 'FOX_MATE':
+        event = { time: t, type: 'mate', detail: 'Foxes mated' }
         break
       case 'GAME_OVER':
         event = { time: t, type: 'game_over', detail: 'Simulation ended — a population reached 0' }

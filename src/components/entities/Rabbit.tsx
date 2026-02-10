@@ -26,8 +26,8 @@ import IntentionOverlay from './IntentionOverlay.tsx'
 
 const MATING_PAUSE_DURATION = 2.0
 const BABY_SPEED_MULTIPLIER = 0.6
-const BABY_HUNGER_RATE = 0.025
-const ADULT_HUNGER_RATE = 0.017
+const BABY_HUNGER_RATE = 0.014
+const ADULT_HUNGER_RATE = 0.008
 const PREGNANT_HUNGER_THRESHOLD = 0.6
 const RABBIT_HUNGER_THRESHOLD = 0.55
 
@@ -232,8 +232,8 @@ export default function Rabbit({ data }: RabbitProps) {
                 type: 'rabbit',
                 position: babyPos,
                 velocity: [0, 0, 0],
-                hunger: 0.8,
-                thirst: 0.8,
+                hunger: 0.9,
+                thirst: 0.9,
                 behavior: 'wandering',
                 alive: true,
                 jumpPhase: Math.random() * Math.PI * 2,
@@ -320,8 +320,8 @@ export default function Rabbit({ data }: RabbitProps) {
                 type: 'rabbit',
                 position: babyPos,
                 velocity: [0, 0, 0],
-                hunger: 0.8,
-                thirst: 0.8,
+                hunger: 0.9,
+                thirst: 0.9,
                 behavior: 'wandering',
                 alive: true,
                 jumpPhase: Math.random() * Math.PI * 2,
