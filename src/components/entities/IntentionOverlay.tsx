@@ -15,8 +15,10 @@ interface IntentionOverlayProps {
   labelY?: number
   /** Line color */
   color?: string
-  /** Sight / aggro radius to display as a circle on the ground */
+  /** Base sight / aggro radius (used for initial geometry) */
   sightRadius?: number
+  /** Ref to the effective (dynamic) sight radius — scales the ring each frame */
+  sightRadiusRef?: React.RefObject<number>
 }
 
 export default function IntentionOverlay({
@@ -26,6 +28,7 @@ export default function IntentionOverlay({
   labelY = 1.4,
   color = '#00ffff',
   sightRadius,
+  sightRadiusRef,
 }: IntentionOverlayProps) {
   const { showIntentions } = useDebug()
   const lineRef = useRef<{ geometry: { setPositions: (arr: number[]) => void } }>(null!)
@@ -62,9 +65,13 @@ export default function IntentionOverlay({
       lineGroupRef.current.visible = false
     }
 
-    // Update sight radius ring position
+    // Update sight radius ring position and dynamic scale
     if (ringRef.current) {
       ringRef.current.position.set(pos.x, 0.05, pos.z)
+      if (sightRadiusRef && sightRadius) {
+        const scale = sightRadiusRef.current / sightRadius
+        ringRef.current.scale.set(scale, scale, 1)
+      }
     }
   })
 

@@ -20,6 +20,19 @@ export const JUMP_HEIGHT = 0.6
 export const JUMP_FREQUENCY = 3
 export const MATE_RADIUS = 10
 export const MATING_COOLDOWN = 20
+export const NIGHT_SIGHT_MULTIPLIER = 0.4
+
+/** Returns a 0.4–1.0 multiplier for sight/aggro radius based on time of day */
+export function getSightMultiplier(timeOfDay: number): number {
+  const t = timeOfDay
+  const MIN = NIGHT_SIGHT_MULTIPLIER
+  const RANGE = 1 - MIN
+  if (t < 0.1) return MIN                                        // night
+  if (t < 0.2) return MIN + ((t - 0.1) / 0.1) * RANGE           // dawn → day
+  if (t < 0.55) return 1.0                                       // day
+  if (t < 0.75) return 1.0 - ((t - 0.55) / 0.2) * RANGE         // dusk → night
+  return MIN                                                      // night
+}
 
 // ─── Weather Types ──────────────────────────────────────────
 export type WeatherType = 'sunny' | 'rainy'
@@ -61,6 +74,7 @@ export interface RabbitState extends EntityState {
   sex: 'male' | 'female'
   isAdult: boolean
   pregnant: boolean
+  mealsEaten: number
 }
 
 export interface FoxState extends EntityState {

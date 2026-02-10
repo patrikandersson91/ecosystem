@@ -10,6 +10,7 @@ import Flowers from './Flowers.tsx'
 import WeatherSystem from './WeatherSystem.tsx'
 import Rain from './Rain.tsx'
 import WaterSplashes from './WaterSplashes.tsx'
+import BloodEffects from './BloodEffects.tsx'
 import RabbitGroup from '../entities/RabbitGroup.tsx'
 import FoxGroup from '../entities/FoxGroup.tsx'
 import { useEcosystem, useEcosystemDispatch, randomFlowerPosition } from '../../state/ecosystem-context.tsx'
@@ -55,6 +56,7 @@ export default function EcosystemScene() {
       <Terrain />
       <River />
       <WaterSplashes />
+      <BloodEffects />
       <Trees />
       <Bushes />
       <Stones />

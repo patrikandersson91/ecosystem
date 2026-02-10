@@ -8,6 +8,7 @@ import {
   MAX_SPEED_FOX,
   NEED_THRESHOLD,
   WORLD_SIZE,
+  getSightMultiplier,
 } from '../../types/ecosystem.ts'
 import { ALL_OBSTACLES } from '../../data/obstacles.ts'
 import { riverDepthAt } from '../../utils/river-path.ts'
@@ -17,6 +18,7 @@ import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-contex
 import { findNearest, findNearestRiverPoint, entitiesInRadius } from '../../state/ecosystem-selectors.ts'
 import StatusBar from './StatusBar.tsx'
 import IntentionOverlay from './IntentionOverlay.tsx'
+import { useDebug } from '../../state/debug-context.tsx'
 
 interface FoxProps {
   data: FoxState
@@ -26,6 +28,7 @@ export default function Fox({ data }: FoxProps) {
   const groupRef = useRef<Group>(null!)
   const state = useEcosystem()
   const dispatch = useEcosystemDispatch()
+  const { spawnBlood } = useDebug()
 
   const position = useRef(new Vector3(...data.position))
   const velocity = useRef(new Vector3(...data.velocity))
@@ -34,6 +37,7 @@ export default function Fox({ data }: FoxProps) {
   // Debug intention tracking
   const intentionRef = useRef('Wandering')
   const intentionTargetRef = useRef<Vector3 | null>(null)
+  const effectiveSightRef = useRef(AGGRO_RADIUS)
 
   const { seek, wander, applyForces } = useSteering({
     maxSpeed: MAX_SPEED_FOX,
@@ -62,12 +66,14 @@ export default function Fox({ data }: FoxProps) {
 
     const pos = position.current
     const vel = velocity.current
+    const effectiveAggroRadius = AGGRO_RADIUS * getSightMultiplier(state.timeOfDay)
+    effectiveSightRef.current = effectiveAggroRadius
     tempForce.set(0, 0, 0)
 
     // ── 1. CHASE: hunt rabbits in aggro radius ──
     const nearbyRabbits = entitiesInRadius(
       [pos.x, pos.y, pos.z],
-      AGGRO_RADIUS,
+      effectiveAggroRadius,
       state.rabbits,
     )
 
@@ -82,6 +88,7 @@ export default function Fox({ data }: FoxProps) {
 
         // Catch rabbit
         if (pos.distanceTo(tempTarget) < 0.5) {
+          spawnBlood(pos.x, 0.5, pos.z)
           dispatch({ type: 'REMOVE_RABBIT', id: nearest.id })
           dispatch({
             type: 'UPDATE_ENTITY_NEEDS',
@@ -278,6 +285,7 @@ export default function Fox({ data }: FoxProps) {
       labelY={1.6}
       color="#ff9040"
       sightRadius={AGGRO_RADIUS}
+      sightRadiusRef={effectiveSightRef}
     />
     </>
   )

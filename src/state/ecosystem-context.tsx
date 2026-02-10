@@ -46,6 +46,7 @@ function generateRabbits(count: number): RabbitState[] {
     sex: (i % 2 === 0 ? 'male' : 'female') as 'male' | 'female',
     isAdult: true,
     pregnant: false,
+    mealsEaten: 0,
   }))
 }
 
@@ -154,21 +155,24 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
         ),
       }
 
-    case 'EAT_FLOWER':
+    case 'EAT_FLOWER': {
       return {
         ...state,
         flowers: state.flowers.filter(f => f.id !== action.flowerId),
         rabbits: state.rabbits.map(r => {
           if (r.id !== action.entityId) return r
+          const newMeals = r.mealsEaten + 1
           return {
             ...r,
             hunger: Math.min(1, r.hunger + 0.3),
             behavior: 'eating' as const,
             pregnant: false,
-            isAdult: true,
+            isAdult: r.isAdult || newMeals >= 2,
+            mealsEaten: newMeals,
           }
         }),
       }
+    }
 
     case 'DRINK':
       if (action.entityType === 'rabbit') {
