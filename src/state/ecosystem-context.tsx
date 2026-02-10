@@ -208,7 +208,10 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
         ...state,
         rabbits: state.rabbits.map(r => {
           if (r.id === action.femaleId) {
-            return { ...r, pregnant: true }
+            return { ...r, pregnant: true, hunger: Math.max(0, r.hunger - 0.2) }
+          }
+          if (r.id === action.maleId) {
+            return { ...r, hunger: Math.max(0, r.hunger - 0.2) }
           }
           return r
         }),

@@ -134,10 +134,16 @@ export default function Fox({ data }: FoxProps) {
 
     applyForces(pos, vel, tempForce, delta)
 
-    // World bounds
+    // World bounds – reflect velocity on wall collision
     const bound = WORLD_SIZE * 0.95
-    pos.x = Math.max(-bound, Math.min(bound, pos.x))
-    pos.z = Math.max(-bound, Math.min(bound, pos.z))
+    if (pos.x < -bound || pos.x > bound) {
+      vel.x *= -1
+      pos.x = Math.max(-bound, Math.min(bound, pos.x))
+    }
+    if (pos.z < -bound || pos.z > bound) {
+      vel.z *= -1
+      pos.z = Math.max(-bound, Math.min(bound, pos.z))
+    }
 
     // River depth: sink to riverbed when walking in the river
     const depth = riverDepthAt(pos.x, pos.z)

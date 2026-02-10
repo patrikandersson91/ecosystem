@@ -26,6 +26,8 @@ import IntentionOverlay from './IntentionOverlay.tsx'
 
 const MATING_PAUSE_DURATION = 2.0
 const BABY_SPEED_MULTIPLIER = 0.6
+const BABY_HUNGER_RATE = 0.055
+const ADULT_HUNGER_RATE = 0.035
 const PREGNANT_HUNGER_THRESHOLD = 0.6
 const RABBIT_HUNGER_THRESHOLD = 0.45
 
@@ -101,7 +103,7 @@ export default function Rabbit({ data }: RabbitProps) {
     entityType: 'rabbit',
     hunger: data.hunger,
     thirst: data.thirst,
-    hungerRate: 0.035,
+    hungerRate: data.isAdult ? ADULT_HUNGER_RATE : BABY_HUNGER_RATE,
   })
 
   // Reusable temp vectors
@@ -424,10 +426,16 @@ export default function Rabbit({ data }: RabbitProps) {
       vel.clampLength(0, MAX_SPEED_RABBIT * BABY_SPEED_MULTIPLIER)
     }
 
-    // World bounds
+    // World bounds – reflect velocity on wall collision
     const bound = WORLD_SIZE * 0.95
-    pos.x = Math.max(-bound, Math.min(bound, pos.x))
-    pos.z = Math.max(-bound, Math.min(bound, pos.z))
+    if (pos.x < -bound || pos.x > bound) {
+      vel.x *= -1
+      pos.x = Math.max(-bound, Math.min(bound, pos.x))
+    }
+    if (pos.z < -bound || pos.z > bound) {
+      vel.z *= -1
+      pos.z = Math.max(-bound, Math.min(bound, pos.z))
+    }
 
     // Jump animation
     const speed = vel.length()
