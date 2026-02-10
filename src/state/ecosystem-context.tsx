@@ -65,6 +65,8 @@ function generateFoxes(count: number): FoxState[] {
     targetId: null,
     sex: (i % 2 === 0 ? 'male' : 'female') as 'male' | 'female',
     pregnant: false,
+    mealsWhilePregnant: 0,
+    isAdult: true,
   }))
 }
 
@@ -228,13 +230,31 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
         ...state,
         foxes: state.foxes.map(f => {
           if (f.id === action.femaleId) {
-            return { ...f, pregnant: true, hunger: Math.max(0, f.hunger - 0.10) }
+            return { ...f, pregnant: true, mealsWhilePregnant: 0, hunger: Math.max(0, f.hunger - 0.10) }
           }
           if (f.id === action.maleId) {
             return { ...f, hunger: Math.max(0, f.hunger - 0.10) }
           }
           return f
         }),
+      }
+
+    case 'FOX_PREGNANCY_MEAL':
+      return {
+        ...state,
+        foxes: state.foxes.map(f =>
+          f.id === action.id
+            ? { ...f, mealsWhilePregnant: action.mealsWhilePregnant, pregnant: action.pregnant }
+            : f,
+        ),
+      }
+
+    case 'FOX_GROW_UP':
+      return {
+        ...state,
+        foxes: state.foxes.map(f =>
+          f.id === action.id ? { ...f, isAdult: true } : f,
+        ),
       }
 
     case 'SET_WEATHER':
@@ -261,7 +281,7 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
 
 const defaultConfig: SimulationConfig = {
   initialRabbits: 20,
-  initialFoxes: 4,
+  initialFoxes: 6,
   initialFlowers: 90,
 }
 

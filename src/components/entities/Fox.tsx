@@ -10,7 +10,6 @@ import {
   WORLD_SIZE,
   FOX_MATE_RADIUS,
   FOX_MATING_COOLDOWN,
-  FOX_HUNT_THRESHOLD,
   getSightMultiplier,
 } from '../../types/ecosystem.ts'
 import { ALL_OBSTACLES } from '../../data/obstacles.ts'
@@ -52,8 +51,9 @@ export default function Fox({ data }: FoxProps) {
   const intentionTargetRef = useRef<Vector3 | null>(null)
   const effectiveSightRef = useRef(AGGRO_RADIUS)
 
+  const babySpeedScale = data.isAdult ? 1 : 0.65
   const { seek, wander, applyForces } = useSteering({
-    maxSpeed: MAX_SPEED_FOX,
+    maxSpeed: MAX_SPEED_FOX * babySpeedScale,
     maxForce: 6,
     mass: 1.2,
     wanderRadius: 2,
@@ -66,7 +66,7 @@ export default function Fox({ data }: FoxProps) {
     entityType: 'fox',
     hunger: data.hunger,
     thirst: data.thirst,
-    hungerRate: 0.005,
+    hungerRate: 0.003,
   })
 
   const tempForce = useMemo(() => new Vector3(), [])
@@ -119,7 +119,7 @@ export default function Fox({ data }: FoxProps) {
       state.rabbits,
     )
 
-    if (nearbyRabbits.length > 0 && hungerRef.current < FOX_HUNT_THRESHOLD) {
+    if (nearbyRabbits.length > 0 && hungerRef.current < 0.98) {
       const nearest = findNearest([pos.x, pos.y, pos.z], nearbyRabbits)
       if (nearest) {
         tempTarget.set(...nearest.position)
@@ -142,29 +142,56 @@ export default function Fox({ data }: FoxProps) {
             thirst: needs.thirst,
           })
 
-          // Pregnant female gives birth when eating
+          // Baby fox grows up after first kill
+          if (!data.isAdult) {
+            dispatch({ type: 'FOX_GROW_UP', id: data.id })
+          }
+
+          // Pregnant female tracks meals — needs 2 kills to give birth
           if (pregnantRef.current && data.sex === 'female') {
-            pregnantRef.current = false
-            const babyPos: [number, number, number] = [
-              pos.x + (Math.random() - 0.5) * 3,
-              0,
-              pos.z + (Math.random() - 0.5) * 3,
-            ]
+            const newMeals = (data.mealsWhilePregnant || 0) + 1
+            if (newMeals >= 2) {
+              pregnantRef.current = false
+              const foxLitterSize = state.foxes.length < 8 ? 1 : 0
+              for (let i = 0; i < foxLitterSize; i++) {
+                const babyPos: [number, number, number] = [
+                  pos.x + (Math.random() - 0.5) * 3,
+                  0,
+                  pos.z + (Math.random() - 0.5) * 3,
+                ]
+                dispatch({
+                  type: 'SPAWN_FOX',
+                  fox: {
+                    id: `fox_${Date.now()}_${Math.floor(Math.random() * 10000)}_${i}`,
+                    type: 'fox',
+                    position: babyPos,
+                    velocity: [0, 0, 0],
+                    hunger: 0.8,
+                    thirst: 0.8,
+                    behavior: 'wandering',
+                    alive: true,
+                    targetId: null,
+                    sex: Math.random() > 0.5 ? 'male' : 'female',
+                    pregnant: false,
+                    mealsWhilePregnant: 0,
+                    isAdult: false,
+                  },
+                })
+              }
+            }
+            // Update meal count in state
             dispatch({
-              type: 'SPAWN_FOX',
-              fox: {
-                id: `fox_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-                type: 'fox',
-                position: babyPos,
-                velocity: [0, 0, 0],
-                hunger: 0.8,
-                thirst: 0.8,
-                behavior: 'wandering',
-                alive: true,
-                targetId: null,
-                sex: Math.random() > 0.5 ? 'male' : 'female',
-                pregnant: false,
-              },
+              type: 'UPDATE_ENTITY_NEEDS',
+              id: data.id,
+              entityType: 'fox',
+              hunger: hungerRef.current,
+              thirst: needs.thirst,
+            })
+            dispatch({
+              type: 'FOX_PREGNANCY_MEAL',
+              id: data.id,
+              mealsWhilePregnant: newMeals >= 2 ? 0 : newMeals,
+              pregnant: newMeals < 2,
             })
           }
         }
@@ -184,6 +211,7 @@ export default function Fox({ data }: FoxProps) {
 
     // ── 3. SEEK MATE: well-fed, adult, not pregnant, cooldown expired ──
     } else if (
+      data.isAdult &&
       !pregnantRef.current &&
       matingCooldownRef.current <= 0 &&
       hungerRef.current > 0.65 &&
@@ -193,6 +221,7 @@ export default function Fox({ data }: FoxProps) {
         f =>
           f.id !== data.id &&
           f.alive &&
+          f.isAdult &&
           !f.pregnant &&
           f.sex !== data.sex,
       )
@@ -293,7 +322,7 @@ export default function Fox({ data }: FoxProps) {
   return (
     <>
     <group ref={groupRef} position={[...data.position]}>
-      <group scale={[1.6, 1.6, 1.6]}>
+      <group scale={data.isAdult ? [1.6, 1.6, 1.6] : [1.0, 1.0, 1.0]}>
         {/* Body */}
         <mesh castShadow>
           <boxGeometry args={[0.35, 0.32, 0.7]} />
@@ -405,8 +434,6 @@ export default function Fox({ data }: FoxProps) {
       intentionRef={intentionRef}
       labelY={1.6}
       color="#ff9040"
-      sightRadius={AGGRO_RADIUS}
-      sightRadiusRef={effectiveSightRef}
     />
     </>
   )

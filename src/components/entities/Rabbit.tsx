@@ -19,17 +19,16 @@ import { riverDepthAt } from '../../utils/river-path.ts'
 import { useSteering } from '../../hooks/useSteering.ts'
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts'
 import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
-import { findNearest, findNearestRiverPoint, entitiesInRadius } from '../../state/ecosystem-selectors.ts'
+import { findNearest, findRandomAmongNearest, findNearestRiverPoint, entitiesInRadius } from '../../state/ecosystem-selectors.ts'
 import { Billboard } from '@react-three/drei'
 import StatusBar from './StatusBar.tsx'
 import IntentionOverlay from './IntentionOverlay.tsx'
 
 const MATING_PAUSE_DURATION = 2.0
 const BABY_SPEED_MULTIPLIER = 0.6
-const BABY_HUNGER_RATE = 0.014
-const ADULT_HUNGER_RATE = 0.008
-const PREGNANT_HUNGER_THRESHOLD = 0.6
-const RABBIT_HUNGER_THRESHOLD = 0.55
+const BABY_HUNGER_RATE = 0.025
+const ADULT_HUNGER_RATE = 0.012
+const RABBIT_BREED_THRESHOLD = 0.8
 
 // Heart shape geometry (created once, shared)
 const heartShape = new THREE.Shape()
@@ -71,6 +70,12 @@ export default function Rabbit({ data }: RabbitProps) {
   const drinkingTimerRef = useRef(0)
   const eatingTimerRef = useRef(0)
   const eatingFlowerIdRef = useRef<string | null>(null)
+
+  // Committed flower target — stick with one until it disappears
+  const targetFlowerIdRef = useRef<string | null>(null)
+
+  // Idle wander timer — occasionally rabbits just roam
+  const idleWanderRef = useRef(0)
 
   // Debug intention tracking
   const intentionRef = useRef('Wandering')
@@ -218,31 +223,34 @@ export default function Rabbit({ data }: RabbitProps) {
       if (eatingTimerRef.current <= 0) {
         eatingTimerRef.current = 0
         if (eatingFlowerIdRef.current) {
-          if (pregnantRef.current) {
+          if (pregnantRef.current && hungerRef.current > NEED_THRESHOLD) {
             pregnantRef.current = false
-            const babyPos: [number, number, number] = [
-              pos.x + (Math.random() - 0.5) * 2,
-              0,
-              pos.z + (Math.random() - 0.5) * 2,
-            ]
-            dispatch({
-              type: 'SPAWN_RABBIT',
-              rabbit: {
-                id: `rabbit_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-                type: 'rabbit',
-                position: babyPos,
-                velocity: [0, 0, 0],
-                hunger: 0.9,
-                thirst: 0.9,
-                behavior: 'wandering',
-                alive: true,
-                jumpPhase: Math.random() * Math.PI * 2,
-                sex: Math.random() > 0.5 ? 'male' : 'female',
-                isAdult: false,
-                pregnant: false,
-                mealsEaten: 0,
-              },
-            })
+            const litterSize = 2
+            for (let i = 0; i < litterSize; i++) {
+              const babyPos: [number, number, number] = [
+                pos.x + (Math.random() - 0.5) * 2,
+                0,
+                pos.z + (Math.random() - 0.5) * 2,
+              ]
+              dispatch({
+                type: 'SPAWN_RABBIT',
+                rabbit: {
+                  id: `rabbit_${Date.now()}_${Math.floor(Math.random() * 10000)}_${i}`,
+                  type: 'rabbit',
+                  position: babyPos,
+                  velocity: [0, 0, 0],
+                  hunger: 0.9,
+                  thirst: 0.9,
+                  behavior: 'wandering',
+                  alive: true,
+                  jumpPhase: Math.random() * Math.PI * 2,
+                  sex: Math.random() > 0.5 ? 'male' : 'female',
+                  isAdult: false,
+                  pregnant: false,
+                  mealsEaten: 0,
+                },
+              })
+            }
           }
           dispatch({ type: 'EAT_FLOWER', flowerId: eatingFlowerIdRef.current, entityId: data.id })
           eatingFlowerIdRef.current = null
@@ -267,9 +275,6 @@ export default function Rabbit({ data }: RabbitProps) {
 
     tempForce.set(0, 0, 0)
 
-    // Pregnant rabbits get hungry sooner
-    const hungerThreshold = pregnantRef.current ? PREGNANT_HUNGER_THRESHOLD : RABBIT_HUNGER_THRESHOLD
-
     // ── 1. FLEE: highest priority ──
     const nearbyFoxes = entitiesInRadius(
       [pos.x, pos.y, pos.z],
@@ -291,56 +296,12 @@ export default function Rabbit({ data }: RabbitProps) {
       }
       const fleeForce = flee(pos, vel, closestFoxPos, effectiveFleeRadius)
       tempForce.add(fleeForce.multiplyScalar(2.0))
+      targetFlowerIdRef.current = null
+      idleWanderRef.current = 0 // drop flower commitment and wander when fleeing
       intentionRef.current = 'Fleeing!'
       intentionTargetRef.current = null
 
-    // ── 2. SEEK FOOD: hungry (pregnant rabbits eat sooner) ──
-    } else if (hungerRef.current < hungerThreshold) {
-      const aliveFlowers = state.flowers.filter(f => f.alive)
-      const nearest = findNearest([pos.x, pos.y, pos.z], aliveFlowers)
-      if (nearest) {
-        tempTarget.set(...nearest.position)
-        tempForce.add(seek(pos, vel, tempTarget))
-        intentionRef.current = 'Seeking food'
-        intentionTargetRef.current = tempTarget.clone()
-
-        if (pos.distanceTo(tempTarget) < 0.8) {
-          // Spawn baby if pregnant
-          if (pregnantRef.current) {
-            pregnantRef.current = false
-            const babyPos: [number, number, number] = [
-              pos.x + (Math.random() - 0.5) * 2,
-              0,
-              pos.z + (Math.random() - 0.5) * 2,
-            ]
-            dispatch({
-              type: 'SPAWN_RABBIT',
-              rabbit: {
-                id: `rabbit_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-                type: 'rabbit',
-                position: babyPos,
-                velocity: [0, 0, 0],
-                hunger: 0.9,
-                thirst: 0.9,
-                behavior: 'wandering',
-                alive: true,
-                jumpPhase: Math.random() * Math.PI * 2,
-                sex: Math.random() > 0.5 ? 'male' : 'female',
-                isAdult: false,
-                pregnant: false,
-                mealsEaten: 0,
-              },
-            })
-          }
-          dispatch({ type: 'EAT_FLOWER', flowerId: nearest.id, entityId: data.id })
-        }
-      } else {
-        tempForce.add(wander(pos, vel))
-        intentionRef.current = 'Wandering'
-        intentionTargetRef.current = null
-      }
-
-    // ── 3. SEEK WATER: thirsty ──
+    // ── 2. SEEK WATER: thirsty ──
     } else if (thirstRef.current < NEED_THRESHOLD) {
       const riverPt = findNearestRiverPoint([pos.x, pos.y, pos.z])
       tempTarget.set(...riverPt)
@@ -352,13 +313,13 @@ export default function Rabbit({ data }: RabbitProps) {
         dispatch({ type: 'DRINK', entityId: data.id, entityType: 'rabbit' })
       }
 
-    // ── 4. SEEK MATE: adult, not pregnant, cooldown expired, not too hungry ──
+    // ── 3. SEEK MATE: well-fed (>80%), adult, not pregnant, cooldown expired ──
     } else if (
+      hungerRef.current > RABBIT_BREED_THRESHOLD &&
+      thirstRef.current > NEED_THRESHOLD &&
       isAdultRef.current &&
       !pregnantRef.current &&
-      matingCooldownRef.current <= 0 &&
-      hungerRef.current > NEED_THRESHOLD &&
-      thirstRef.current > NEED_THRESHOLD
+      matingCooldownRef.current <= 0
     ) {
       // Find eligible mates: opposite sex, adult, not pregnant
       const eligibleMates = state.rabbits.filter(
@@ -395,16 +356,144 @@ export default function Rabbit({ data }: RabbitProps) {
           }
         }
       } else {
+        // No mates nearby — eat or occasionally wander
+        if (idleWanderRef.current > 0) {
+          idleWanderRef.current -= delta
+          tempForce.add(wander(pos, vel))
+          intentionRef.current = 'Wandering'
+          intentionTargetRef.current = null
+        } else {
+        // Check if committed flower target is still valid
+        const aliveFlowers = state.flowers.filter(f => f.alive)
+        let targetFlower = targetFlowerIdRef.current
+          ? aliveFlowers.find(f => f.id === targetFlowerIdRef.current) ?? null
+          : null
+        if (!targetFlower) {
+          if (Math.random() < 0.2) {
+            idleWanderRef.current = 3 + Math.random() * 2
+            tempForce.add(wander(pos, vel))
+            intentionRef.current = 'Wandering'
+            intentionTargetRef.current = null
+          } else {
+            const picked = findRandomAmongNearest([pos.x, pos.y, pos.z], aliveFlowers, 3)
+            targetFlower = picked
+            targetFlowerIdRef.current = picked ? picked.id : null
+          }
+        }
+        if (targetFlower) {
+          tempTarget.set(...targetFlower.position)
+          tempForce.add(seek(pos, vel, tempTarget))
+          intentionRef.current = 'Seeking food'
+          intentionTargetRef.current = tempTarget.clone()
+
+          if (pos.distanceTo(tempTarget) < 0.8) {
+            targetFlowerIdRef.current = null
+            if (pregnantRef.current && hungerRef.current > NEED_THRESHOLD) {
+              pregnantRef.current = false
+              const litterSize = 2
+              for (let i = 0; i < litterSize; i++) {
+                const babyPos: [number, number, number] = [
+                  pos.x + (Math.random() - 0.5) * 2,
+                  0,
+                  pos.z + (Math.random() - 0.5) * 2,
+                ]
+                dispatch({
+                  type: 'SPAWN_RABBIT',
+                  rabbit: {
+                    id: `rabbit_${Date.now()}_${Math.floor(Math.random() * 10000)}_${i}`,
+                    type: 'rabbit',
+                    position: babyPos,
+                    velocity: [0, 0, 0],
+                    hunger: 0.9,
+                    thirst: 0.9,
+                    behavior: 'wandering',
+                    alive: true,
+                    jumpPhase: Math.random() * Math.PI * 2,
+                    sex: Math.random() > 0.5 ? 'male' : 'female',
+                    isAdult: false,
+                    pregnant: false,
+                    mealsEaten: 0,
+                  },
+                })
+              }
+            }
+            dispatch({ type: 'EAT_FLOWER', flowerId: targetFlower.id, entityId: data.id })
+          }
+        } else {
+          tempForce.add(wander(pos, vel))
+          intentionRef.current = 'Wandering'
+          intentionTargetRef.current = null
+        }
+        }
+      }
+
+    // ── 4. SEEK FOOD: eat most of the time, occasionally wander ──
+    } else {
+      if (idleWanderRef.current > 0) {
+        idleWanderRef.current -= delta
         tempForce.add(wander(pos, vel))
         intentionRef.current = 'Wandering'
         intentionTargetRef.current = null
-      }
+      } else {
+        // Check if committed flower target is still valid
+        const aliveFlowers = state.flowers.filter(f => f.alive)
+        let targetFlower = targetFlowerIdRef.current
+          ? aliveFlowers.find(f => f.id === targetFlowerIdRef.current) ?? null
+          : null
+        if (!targetFlower) {
+          // ~20% chance to idle wander for 3-5s instead of picking a flower
+          if (Math.random() < 0.2) {
+            idleWanderRef.current = 3 + Math.random() * 2
+            tempForce.add(wander(pos, vel))
+            intentionRef.current = 'Wandering'
+            intentionTargetRef.current = null
+          } else {
+            const picked = findRandomAmongNearest([pos.x, pos.y, pos.z], aliveFlowers, 3)
+            targetFlower = picked
+            targetFlowerIdRef.current = picked ? picked.id : null
+          }
+        }
+        if (targetFlower) {
+          tempTarget.set(...targetFlower.position)
+          tempForce.add(seek(pos, vel, tempTarget))
+          intentionRef.current = 'Seeking food'
+          intentionTargetRef.current = tempTarget.clone()
 
-    // ── 5. WANDER ──
-    } else {
-      tempForce.add(wander(pos, vel))
-      intentionRef.current = 'Wandering'
-      intentionTargetRef.current = null
+          if (pos.distanceTo(tempTarget) < 0.8) {
+            targetFlowerIdRef.current = null
+            if (pregnantRef.current) {
+              pregnantRef.current = false
+              const litterSize = 2
+              for (let i = 0; i < litterSize; i++) {
+                const babyPos: [number, number, number] = [
+                  pos.x + (Math.random() - 0.5) * 2,
+                  0,
+                  pos.z + (Math.random() - 0.5) * 2,
+                ]
+                dispatch({
+                  type: 'SPAWN_RABBIT',
+                  rabbit: {
+                    id: `rabbit_${Date.now()}_${Math.floor(Math.random() * 10000)}_${i}`,
+                    type: 'rabbit',
+                    position: babyPos,
+                    velocity: [0, 0, 0],
+                    hunger: 0.9,
+                    thirst: 0.9,
+                    behavior: 'wandering',
+                    alive: true,
+                    jumpPhase: Math.random() * Math.PI * 2,
+                    sex: Math.random() > 0.5 ? 'male' : 'female',
+                    isAdult: false,
+                    pregnant: false,
+                    mealsEaten: 0,
+                  },
+                })
+              }
+            }
+            dispatch({ type: 'EAT_FLOWER', flowerId: targetFlower.id, entityId: data.id })
+          }
+        }
+      }
     }
 
     // Obstacle avoidance — push away from trees and stones
@@ -517,8 +606,6 @@ export default function Rabbit({ data }: RabbitProps) {
         intentionRef={intentionRef}
         labelY={barYOffset + 0.4}
         color="#90ee90"
-        sightRadius={FLEE_RADIUS}
-        sightRadiusRef={effectiveSightRef}
       />
     </>
   )

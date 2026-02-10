@@ -38,7 +38,7 @@ const SimulationLogContext = createContext<SimulationLogState>({
   recordEvent: () => {},
 })
 
-const SNAPSHOT_INTERVAL = 10 // every 10 sim seconds
+const SNAPSHOT_INTERVAL = 30 // every 30 sim seconds
 
 export function SimulationLogProvider({ children }: { children: ReactNode }) {
   const [snapshots, setSnapshots] = useState<LogSnapshot[]>([])

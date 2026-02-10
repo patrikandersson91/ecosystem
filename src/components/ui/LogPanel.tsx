@@ -39,7 +39,7 @@ export default function LogPanel({ onClose }: LogPanelProps) {
       <div className="flex-1 overflow-y-auto p-4">
         {/* Snapshot table */}
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-          Population Snapshots (every 10s)
+          Population Snapshots (every 30s)
         </h3>
         {snapshots.length === 0 ? (
           <p className="mb-4 text-xs text-white/30">No data yet...</p>

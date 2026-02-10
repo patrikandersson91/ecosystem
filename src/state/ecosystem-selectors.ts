@@ -31,6 +31,22 @@ export function findNearestRiverPoint(pos: Vector3Tuple): Vector3Tuple {
   return [px, 0, clampedZ]
 }
 
+export function findRandomAmongNearest<T extends { position: Vector3Tuple }>(
+  pos: Vector3Tuple,
+  entities: T[],
+  count: number,
+): T | null {
+  if (entities.length === 0) return null
+  if (entities.length <= count) {
+    return entities[Math.floor(Math.random() * entities.length)]
+  }
+  const sorted = entities
+    .map(e => ({ e, d: distanceBetween(pos, e.position) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, count)
+  return sorted[Math.floor(Math.random() * sorted.length)].e
+}
+
 export function entitiesInRadius<T extends { position: Vector3Tuple }>(
   pos: Vector3Tuple,
   radius: number,

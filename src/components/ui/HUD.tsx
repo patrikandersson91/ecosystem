@@ -6,7 +6,7 @@ import {
 import { useDebug } from '../../state/debug-context.tsx';
 import LogPanel from './LogPanel.tsx';
 
-const SPEED_OPTIONS = [0.5, 1, 5, 20, 50];
+const SPEED_OPTIONS = [0.5, 1, 5, 20];
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -23,6 +23,11 @@ export default function HUD() {
 
   const aliveFlowers = state.flowers.filter((f) => f.alive).length;
 
+  const rabbitAdults = state.rabbits.filter((r) => r.isAdult).length;
+  const rabbitBabies = state.rabbits.length - rabbitAdults;
+  const foxAdults = state.foxes.filter((f) => f.isAdult).length;
+  const foxBabies = state.foxes.length - foxAdults;
+
   return (
     <div className="pointer-events-none absolute inset-0">
       <div className="pointer-events-auto m-3 inline-flex flex-col gap-3 rounded-xl bg-black/40 p-4 backdrop-blur-md">
@@ -38,11 +43,13 @@ export default function HUD() {
           <Stat
             label="Rabbits"
             value={state.rabbits.length}
+            detail={`${rabbitAdults} adult${rabbitAdults !== 1 ? 's' : ''}, ${rabbitBabies} bab${rabbitBabies !== 1 ? 'ies' : 'y'}`}
             color="text-amber-300"
           />
           <Stat
             label="Foxes"
             value={state.foxes.length}
+            detail={`${foxAdults} adult${foxAdults !== 1 ? 's' : ''}, ${foxBabies} bab${foxBabies !== 1 ? 'ies' : 'y'}`}
             color="text-orange-400"
           />
           <Stat label="Flowers" value={aliveFlowers} color="text-pink-300" />
@@ -156,16 +163,19 @@ export default function HUD() {
 function Stat({
   label,
   value,
+  detail,
   color,
 }: {
   label: string;
   value: number;
+  detail?: string;
   color: string;
 }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className={`text-xs font-medium ${color}`}>{label}</span>
       <span className="text-sm font-bold text-white">{value}</span>
+      {detail && <span className="text-xs text-white/50">{detail}</span>}
     </div>
   );
 }

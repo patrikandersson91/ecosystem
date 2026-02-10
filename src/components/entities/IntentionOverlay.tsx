@@ -15,10 +15,6 @@ interface IntentionOverlayProps {
   labelY?: number
   /** Line color */
   color?: string
-  /** Base sight / aggro radius (used for initial geometry) */
-  sightRadius?: number
-  /** Ref to the effective (dynamic) sight radius — scales the ring each frame */
-  sightRadiusRef?: React.RefObject<number>
 }
 
 export default function IntentionOverlay({
@@ -27,15 +23,12 @@ export default function IntentionOverlay({
   intentionRef,
   labelY = 1.4,
   color = '#00ffff',
-  sightRadius,
-  sightRadiusRef,
 }: IntentionOverlayProps) {
   const { showIntentions } = useDebug()
   const lineRef = useRef<{ geometry: { setPositions: (arr: number[]) => void } }>(null!)
   const htmlRef = useRef<HTMLDivElement>(null!)
   const groupRef = useRef<THREE.Group>(null!)
   const lineGroupRef = useRef<THREE.Group>(null!)
-  const ringRef = useRef<THREE.Group>(null!)
 
   useFrame(() => {
     if (!showIntentions) return
@@ -63,15 +56,6 @@ export default function IntentionOverlay({
       lineGroupRef.current.visible = true
     } else if (lineGroupRef.current) {
       lineGroupRef.current.visible = false
-    }
-
-    // Update sight radius ring position and dynamic scale
-    if (ringRef.current) {
-      ringRef.current.position.set(pos.x, 0.05, pos.z)
-      if (sightRadiusRef && sightRadius) {
-        const scale = sightRadiusRef.current / sightRadius
-        ringRef.current.scale.set(scale, scale, 1)
-      }
     }
   })
 
@@ -111,16 +95,6 @@ export default function IntentionOverlay({
           gapSize={0.3}
         />
       </group>
-
-      {/* Sight / aggro radius circle */}
-      {sightRadius != null && (
-        <group ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
-          <mesh>
-            <ringGeometry args={[sightRadius - 0.05, sightRadius, 64]} />
-            <meshBasicMaterial color={color} transparent opacity={0.25} depthWrite={false} />
-          </mesh>
-        </group>
-      )}
     </>
   )
 }

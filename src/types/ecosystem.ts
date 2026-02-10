@@ -12,7 +12,7 @@ export const RAIN_CHANCE = 0.35; // probability of rain each weather roll
 export const FLEE_RADIUS = 11;
 export const AGGRO_RADIUS = 15;
 export const MAX_SPEED_RABBIT = 3.4;
-export const MAX_SPEED_FOX = 4.5;
+export const MAX_SPEED_FOX = 5.5;
 export const HUNGER_RATE = 0.02;
 export const THIRST_RATE = 0.03;
 export const NEED_THRESHOLD = 0.3;
@@ -22,7 +22,7 @@ export const MATE_RADIUS = 15;
 export const MATING_COOLDOWN = 6;
 export const FOX_MATE_RADIUS = 12;
 export const FOX_MATING_COOLDOWN = 25;
-export const FOX_HUNT_THRESHOLD = 0.85;
+export const FOX_HUNT_THRESHOLD = 0.97;
 export const NIGHT_SIGHT_MULTIPLIER = 0.6;
 
 /** Returns a 0.6–1.0 multiplier for sight/aggro radius based on time of day */
@@ -85,6 +85,8 @@ export interface FoxState extends EntityState {
   targetId: string | null;
   sex: 'male' | 'female';
   pregnant: boolean;
+  mealsWhilePregnant: number;
+  isAdult: boolean;
 }
 
 // ─── World Interfaces ───────────────────────────────────────
