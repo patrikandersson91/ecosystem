@@ -15,6 +15,8 @@ interface IntentionOverlayProps {
   labelY?: number
   /** Line color */
   color?: string
+  /** Sight / aggro radius to display as a circle on the ground */
+  sightRadius?: number
 }
 
 export default function IntentionOverlay({
@@ -23,12 +25,14 @@ export default function IntentionOverlay({
   intentionRef,
   labelY = 1.4,
   color = '#00ffff',
+  sightRadius,
 }: IntentionOverlayProps) {
   const { showIntentions } = useDebug()
   const lineRef = useRef<{ geometry: { setPositions: (arr: number[]) => void } }>(null!)
   const htmlRef = useRef<HTMLDivElement>(null!)
   const groupRef = useRef<THREE.Group>(null!)
   const lineGroupRef = useRef<THREE.Group>(null!)
+  const ringRef = useRef<THREE.Group>(null!)
 
   useFrame(() => {
     if (!showIntentions) return
@@ -56,6 +60,11 @@ export default function IntentionOverlay({
       lineGroupRef.current.visible = true
     } else if (lineGroupRef.current) {
       lineGroupRef.current.visible = false
+    }
+
+    // Update sight radius ring position
+    if (ringRef.current) {
+      ringRef.current.position.set(pos.x, 0.05, pos.z)
     }
   })
 
@@ -95,6 +104,16 @@ export default function IntentionOverlay({
           gapSize={0.3}
         />
       </group>
+
+      {/* Sight / aggro radius circle */}
+      {sightRadius != null && (
+        <group ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh>
+            <ringGeometry args={[sightRadius - 0.05, sightRadius, 64]} />
+            <meshBasicMaterial color={color} transparent opacity={0.25} depthWrite={false} />
+          </mesh>
+        </group>
+      )}
     </>
   )
 }

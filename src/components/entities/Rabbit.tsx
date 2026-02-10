@@ -320,6 +320,7 @@ export default function Rabbit({ data }: RabbitProps) {
         intentionRef={intentionRef}
         labelY={barYOffset + 0.4}
         color="#90ee90"
+        sightRadius={FLEE_RADIUS}
       />
     </>
   )

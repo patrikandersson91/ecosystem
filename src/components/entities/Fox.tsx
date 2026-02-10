@@ -277,6 +277,7 @@ export default function Fox({ data }: FoxProps) {
       intentionRef={intentionRef}
       labelY={1.6}
       color="#ff9040"
+      sightRadius={AGGRO_RADIUS}
     />
     </>
   )
