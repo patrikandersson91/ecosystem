@@ -1,9 +1,11 @@
-import { createContext, useContext, useReducer } from 'react'
+import { createContext, useContext, useReducer, useCallback } from 'react'
 import type { ReactNode, Dispatch } from 'react'
 import type { EcosystemState, RabbitState, FoxState, FlowerState, SimulationConfig, WeatherState } from '../types/ecosystem.ts'
 import type { EcosystemAction } from './ecosystem-actions.ts'
 import { WORLD_SIZE, WEATHER_CHANGE_INTERVAL } from '../types/ecosystem.ts'
 import { isInRiver } from '../utils/river-path'
+import { useSimulationLog } from './simulation-log.tsx'
+import type { LogEvent } from './simulation-log.tsx'
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -87,6 +89,8 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
         paused: false,
         weather: { type: 'sunny', intensity: 0, nextChangeAt: WEATHER_CHANGE_INTERVAL },
         timeOfDay: 0.15,
+        speed: 1,
+        gameOver: false,
       }
 
     case 'TICK':
@@ -226,6 +230,12 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
     case 'SET_TIME_OF_DAY':
       return { ...state, timeOfDay: action.timeOfDay }
 
+    case 'SET_SPEED':
+      return { ...state, speed: action.speed }
+
+    case 'GAME_OVER':
+      return { ...state, gameOver: true, paused: true }
+
     default:
       return state
   }
@@ -248,6 +258,8 @@ const initialState: EcosystemState = {
   config: defaultConfig,
   weather: { type: 'sunny', intensity: 0, nextChangeAt: WEATHER_CHANGE_INTERVAL },
   timeOfDay: 0.15,
+  speed: 1,
+  gameOver: false,
 }
 
 // ─── Context ────────────────────────────────────────────────
@@ -256,7 +268,46 @@ const EcosystemContext = createContext<EcosystemState>(initialState)
 const EcosystemDispatchContext = createContext<Dispatch<EcosystemAction>>(() => {})
 
 export function EcosystemProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(ecosystemReducer, initialState)
+  const [state, rawDispatch] = useReducer(ecosystemReducer, initialState)
+  const { recordEvent, recordSnapshot, reset } = useSimulationLog()
+
+  const dispatch: Dispatch<EcosystemAction> = useCallback((action) => {
+    rawDispatch(action)
+
+    const t = state.time
+    let event: LogEvent | null = null
+
+    switch (action.type) {
+      case 'INIT':
+        reset()
+        break
+      case 'SPAWN_RABBIT':
+        event = { time: t, type: 'birth', detail: `Rabbit born (${action.rabbit.sex})` }
+        break
+      case 'REMOVE_RABBIT':
+        event = { time: t, type: 'eaten', detail: 'Rabbit eaten by fox' }
+        break
+      case 'KILL_ENTITY':
+        if (action.entityType === 'rabbit') {
+          event = { time: t, type: 'starve_rabbit', detail: 'Rabbit starved' }
+        } else {
+          event = { time: t, type: 'starve_fox', detail: 'Fox starved' }
+        }
+        break
+      case 'RABBIT_MATE':
+        event = { time: t, type: 'mate', detail: 'Rabbits mated' }
+        break
+      case 'GAME_OVER':
+        event = { time: t, type: 'game_over', detail: 'Simulation ended — a population reached 0' }
+        break
+      case 'TICK':
+        recordSnapshot(state)
+        break
+    }
+
+    if (event) recordEvent(event)
+  }, [state.time, recordEvent, recordSnapshot, reset])
+
   return (
     <EcosystemContext value={state}>
       <EcosystemDispatchContext value={dispatch}>

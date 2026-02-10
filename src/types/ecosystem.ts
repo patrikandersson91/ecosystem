@@ -104,4 +104,6 @@ export interface EcosystemState {
   config: SimulationConfig
   weather: WeatherState
   timeOfDay: number // 0-1 representing progress through the day cycle (0=dawn, 0.25=noon, 0.5=dusk, 0.75=midnight)
+  speed: number // simulation speed multiplier (0.5, 1, 2, 3)
+  gameOver: boolean // true when any population reaches 0
 }

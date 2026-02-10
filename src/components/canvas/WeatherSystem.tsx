@@ -163,8 +163,13 @@ export default function WeatherSystem() {
   const sunPos = useMemo(() => new Vector3(), [])
   const tempColor = useMemo(() => new Color(), [])
 
-  useFrame((_, delta) => {
+  useFrame((_, rawDelta) => {
     if (state.paused) return
+
+    const delta = rawDelta * state.speed
+
+    // Advance simulation clock
+    dispatch({ type: 'TICK', delta })
 
     // Update time of day
     const newTimeOfDay = (state.timeOfDay + delta / DAY_DURATION) % 1

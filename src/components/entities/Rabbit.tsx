@@ -111,8 +111,10 @@ export default function Rabbit({ data }: RabbitProps) {
   const tempTarget = useMemo(() => new THREE.Vector3(), [])
   const tempFoxPos = useMemo(() => new THREE.Vector3(), [])
 
-  useFrame((_frameState, delta) => {
+  useFrame((_frameState, rawDelta) => {
     if (state.paused) return
+
+    const delta = rawDelta * state.speed
 
     // Tick needs — may kill entity
     const needs = tickNeeds(delta)

@@ -10,7 +10,6 @@ export default function SimulationPage() {
   const state = useEcosystem()
   const dispatch = useEcosystemDispatch()
 
-  // Auto-init if navigated directly to /sim without going through landing page
   useEffect(() => {
     if (state.rabbits.length === 0 && state.foxes.length === 0) {
       dispatch({ type: 'INIT', config: state.config })

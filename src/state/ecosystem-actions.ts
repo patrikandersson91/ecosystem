@@ -19,3 +19,5 @@ export type EcosystemAction =
   | { type: 'RABBIT_MATE'; maleId: string; femaleId: string }
   | { type: 'SET_WEATHER'; weather: WeatherType; intensity: number; nextChangeAt: number }
   | { type: 'SET_TIME_OF_DAY'; timeOfDay: number }
+  | { type: 'SET_SPEED'; speed: number }
+  | { type: 'GAME_OVER' }

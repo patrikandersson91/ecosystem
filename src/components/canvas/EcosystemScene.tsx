@@ -15,15 +15,36 @@ import RabbitGroup from '../entities/RabbitGroup.tsx'
 import FoxGroup from '../entities/FoxGroup.tsx'
 import { useEcosystem, useEcosystemDispatch, randomFlowerPosition } from '../../state/ecosystem-context.tsx'
 
+function GameOverDetector() {
+  const state = useEcosystem()
+  const dispatch = useEcosystemDispatch()
+
+  useFrame(() => {
+    if (state.paused || state.gameOver) return
+    // Only check once simulation has started (has entities)
+    if (state.time < 1) return
+
+    const rabbits = state.rabbits.length
+    const foxes = state.foxes.length
+    const flowers = state.flowers.filter(f => f.alive).length
+
+    if (rabbits === 0 || foxes === 0 || flowers === 0) {
+      dispatch({ type: 'GAME_OVER' })
+    }
+  })
+
+  return null
+}
+
 function FlowerRegrowth() {
   const state = useEcosystem()
   const dispatch = useEcosystemDispatch()
   const timer = useRef(0)
 
-  useFrame((_, delta) => {
+  useFrame((_, rawDelta) => {
     if (state.paused) return
-    timer.current += delta
-    if (timer.current > 4) {
+    timer.current += rawDelta * state.speed
+    if (timer.current > 2) {
       timer.current = 0
       const aliveCount = state.flowers.filter(f => f.alive).length
       if (aliveCount < 100) {
@@ -64,6 +85,7 @@ export default function EcosystemScene() {
       <RabbitGroup />
       <FoxGroup />
       <FlowerRegrowth />
+      <GameOverDetector />
     </>
   )
 }

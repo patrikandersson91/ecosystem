@@ -58,8 +58,10 @@ export default function Fox({ data }: FoxProps) {
   const tempForce = useMemo(() => new Vector3(), [])
   const tempTarget = useMemo(() => new Vector3(), [])
 
-  useFrame((_frameState, delta) => {
+  useFrame((_frameState, rawDelta) => {
     if (state.paused) return
+
+    const delta = rawDelta * state.speed
 
     const needs = tickNeeds(delta)
     if (needs.dead) return
