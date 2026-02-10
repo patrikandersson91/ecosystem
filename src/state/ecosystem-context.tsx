@@ -40,8 +40,8 @@ function generateRabbits(count: number): RabbitState[] {
     type: 'rabbit' as const,
     position: randomPosition(),
     velocity: [0, 0, 0] as [number, number, number],
-    hunger: 0.2 + Math.random() * 0.8,
-    thirst: 0.2 + Math.random() * 0.8,
+    hunger: 0.5 + Math.random() * 0.5,
+    thirst: 0.5 + Math.random() * 0.5,
     behavior: 'wandering' as const,
     alive: true,
     jumpPhase: Math.random() * Math.PI * 2,
@@ -58,8 +58,8 @@ function generateFoxes(count: number): FoxState[] {
     type: 'fox' as const,
     position: randomPosition(),
     velocity: [0, 0, 0] as [number, number, number],
-    hunger: 0.2 + Math.random() * 0.8,
-    thirst: 0.2 + Math.random() * 0.8,
+    hunger: 0.6 + Math.random() * 0.4,
+    thirst: 0.5 + Math.random() * 0.5,
     behavior: 'wandering' as const,
     alive: true,
     targetId: null,
@@ -168,7 +168,7 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
           const newMeals = r.mealsEaten + 1
           return {
             ...r,
-            hunger: Math.min(1, r.hunger + 0.3),
+            hunger: Math.min(1, r.hunger + 0.4),
             behavior: 'eating' as const,
             pregnant: false,
             isAdult: r.isAdult || newMeals >= 2,
@@ -245,8 +245,8 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
 
 const defaultConfig: SimulationConfig = {
   initialRabbits: 15,
-  initialFoxes: 5,
-  initialFlowers: 60,
+  initialFoxes: 7,
+  initialFlowers: 80,
 }
 
 const initialState: EcosystemState = {

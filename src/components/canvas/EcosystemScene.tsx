@@ -44,7 +44,7 @@ function FlowerRegrowth() {
   useFrame((_, rawDelta) => {
     if (state.paused) return
     timer.current += rawDelta * state.speed
-    if (timer.current > 2) {
+    if (timer.current > 2.5) {
       timer.current = 0
       const aliveCount = state.flowers.filter(f => f.alive).length
       if (aliveCount < 100) {

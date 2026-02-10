@@ -53,6 +53,7 @@ export default function Fox({ data }: FoxProps) {
     entityType: 'fox',
     hunger: data.hunger,
     thirst: data.thirst,
+    hungerRate: 0.016,
   })
 
   const tempForce = useMemo(() => new Vector3(), [])
@@ -79,7 +80,7 @@ export default function Fox({ data }: FoxProps) {
       state.rabbits,
     )
 
-    if (nearbyRabbits.length > 0 && hungerRef.current < 0.7) {
+    if (nearbyRabbits.length > 0 && hungerRef.current < 0.6) {
       const nearest = findNearest([pos.x, pos.y, pos.z], nearbyRabbits)
       if (nearest) {
         tempTarget.set(...nearest.position)
@@ -96,7 +97,7 @@ export default function Fox({ data }: FoxProps) {
             type: 'UPDATE_ENTITY_NEEDS',
             id: data.id,
             entityType: 'fox',
-            hunger: Math.min(1, hungerRef.current + 0.5),
+            hunger: Math.min(1, hungerRef.current + 0.45),
             thirst: needs.thirst,
           })
         }

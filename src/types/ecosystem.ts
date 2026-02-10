@@ -9,17 +9,17 @@ export const WEATHER_CHANGE_INTERVAL = 30 // seconds between possible weather ch
 export const RAIN_CHANCE = 0.35 // probability of rain each weather roll
 
 // ─── Entity Constants ───────────────────────────────────────
-export const FLEE_RADIUS = 8
+export const FLEE_RADIUS = 10
 export const AGGRO_RADIUS = 12
-export const MAX_SPEED_RABBIT = 3
+export const MAX_SPEED_RABBIT = 3.2
 export const MAX_SPEED_FOX = 4
 export const HUNGER_RATE = 0.02
 export const THIRST_RATE = 0.03
 export const NEED_THRESHOLD = 0.3
 export const JUMP_HEIGHT = 0.6
 export const JUMP_FREQUENCY = 3
-export const MATE_RADIUS = 10
-export const MATING_COOLDOWN = 20
+export const MATE_RADIUS = 15
+export const MATING_COOLDOWN = 8
 export const NIGHT_SIGHT_MULTIPLIER = 0.4
 
 /** Returns a 0.4–1.0 multiplier for sight/aggro radius based on time of day */
