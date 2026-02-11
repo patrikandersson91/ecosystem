@@ -5,11 +5,11 @@ import { useEcosystem } from '../../state/ecosystem-context.tsx'
 import { isInWater } from '../../utils/river-path.ts'
 
 /** Max entities we track at once */
-const MAX_TRACKED = 20
+const MAX_TRACKED = 12
 /** Ripple ring pool size */
-const RIPPLE_POOL = 40
+const RIPPLE_POOL = 24
 /** Splash particle pool size */
-const SPLASH_POOL = 60
+const SPLASH_POOL = 30
 /** How often (seconds) each entity spawns a new ripple */
 const RIPPLE_INTERVAL = 0.25
 /** Ripple lifetime */

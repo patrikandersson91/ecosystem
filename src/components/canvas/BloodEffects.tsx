@@ -5,10 +5,10 @@ import { useDebug } from '../../state/debug-context.tsx'
 import { useEcosystem } from '../../state/ecosystem-context.tsx'
 
 // ─── Particle pool sizes ─────────────────────────────────────
-const DROPLET_POOL = 80
-const SPLAT_POOL = 15
-const DROPLETS_PER_KILL = 25
-const SPLATS_PER_KILL = 4
+const DROPLET_POOL = 50
+const SPLAT_POOL = 10
+const DROPLETS_PER_KILL = 15
+const SPLATS_PER_KILL = 3
 const DROPLET_LIFE = 1.2
 const SPLAT_LIFE = 2.0
 

@@ -18,6 +18,7 @@ import { forEachNearbyObstacle } from '../../data/obstacles.ts';
 import { waterDepthAt } from '../../utils/river-path.ts';
 import { groundHeightAt } from '../../utils/terrain-height.ts';
 import { resolveTreeCollisions } from '../../utils/tree-collision.ts';
+import { heightCapForce, SNOW_HEIGHT } from '../../utils/terrain-avoidance.ts';
 import { useSteering } from '../../hooks/useSteering.ts';
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
 import {
@@ -39,7 +40,7 @@ interface FoxProps {
 }
 
 const MATING_PAUSE_DURATION = 2.5;
-const FOX_HUNGER_RATE = 0.0022;
+const FOX_HUNGER_RATE = 0.0011;
 const FOX_THIRST_RATE = 0.01;
 const FOX_OBSTACLE_QUERY_RADIUS = 1.4;
 
@@ -156,7 +157,7 @@ export default function Fox({ data }: FoxProps) {
       if (nearest) {
         tempTarget.set(...nearest.position);
         const chaseForce = seek(pos, vel, tempTarget);
-        tempForce.add(chaseForce.multiplyScalar(1.7));
+        tempForce.add(chaseForce.multiplyScalar(2.2));
         intentionRef.current = 'Chasing rabbit!';
         intentionTargetRef.current = tempTarget.clone();
 
@@ -187,7 +188,12 @@ export default function Fox({ data }: FoxProps) {
             const newMeals = (data.mealsWhilePregnant || 0) + 1;
             if (newMeals >= 2) {
               pregnantRef.current = false;
-              const foxLitterSize = state.foxes.length < MAX_FOXES ? 1 : 0;
+              const foxLitterSize =
+                state.foxes.length >= MAX_FOXES
+                  ? 0
+                  : state.foxes.length < 10
+                    ? 2
+                    : 1;
               for (let i = 0; i < foxLitterSize; i++) {
                 const babyPos: [number, number, number] = [
                   pos.x + (Math.random() - 0.5) * 3,
@@ -311,6 +317,11 @@ export default function Fox({ data }: FoxProps) {
         tempForce.z += (dz / dist) * strength;
       }
     });
+
+    // Snow avoidance — no walking on snow
+    const [snowFx, snowFz] = heightCapForce(pos.x, pos.z, SNOW_HEIGHT, 5, 15);
+    tempForce.x += snowFx;
+    tempForce.z += snowFz;
 
     applyForces(pos, vel, tempForce, delta);
     resolveTreeCollisions(pos, vel, 0.55);

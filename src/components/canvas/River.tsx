@@ -12,7 +12,7 @@ const SEGMENTS_X = Math.max(128, Math.floor(128 * WORLD_SCALE))
 const SEGMENTS_Z = 16
 const RIVER_LENGTH = RIVER_HALF_LENGTH * 2
 
-const PARTICLE_COUNT = Math.floor(2500 * WORLD_SCALE)
+const PARTICLE_COUNT = Math.floor(1500 * WORLD_SCALE)
 
 // ─── Riverbed shaders ─────────────────────────────────────────
 const riverbedVert = /* glsl */ `

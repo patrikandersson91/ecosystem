@@ -25,7 +25,7 @@ export default function SimulationPage() {
           <Canvas
             camera={{ position: [0, WORLD_SIZE * 0.6, WORLD_SIZE * 0.8], fov: 60, near: 0.1, far: WORLD_SIZE * 12 }}
             shadows
-            dpr={[1, 2]}
+            dpr={[1, 1.5]}
             style={{ width: '100%', height: '100%' }}
           >
             <Suspense fallback={null}>

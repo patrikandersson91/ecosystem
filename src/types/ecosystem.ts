@@ -12,9 +12,9 @@ export const RAIN_CHANCE = 0.35; // probability of rain each weather roll
 
 // ─── Entity Constants ───────────────────────────────────────
 export const FLEE_RADIUS = 11;
-export const AGGRO_RADIUS = 18;
+export const AGGRO_RADIUS = 24;
 export const MAX_SPEED_RABBIT = 3.4;
-export const MAX_SPEED_FOX = 6.0;
+export const MAX_SPEED_FOX = 7.2;
 export const MAX_SPEED_MOOSE = 2.3;
 export const MAX_RABBITS = 200;
 export const MAX_FOXES = 16;

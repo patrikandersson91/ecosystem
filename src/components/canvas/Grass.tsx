@@ -5,7 +5,7 @@ import { isInWater } from '../../utils/river-path.ts'
 import { groundHeightAt } from '../../utils/terrain-height.ts'
 import { WORLD_SIZE, WORLD_SCALE } from '../../types/ecosystem.ts'
 
-const BASE_GRASS_CLUMPS = 1800
+const BASE_GRASS_CLUMPS = 1200
 const GRASS_CLUMPS = Math.floor(BASE_GRASS_CLUMPS * WORLD_SCALE)
 
 function seededRandom(seed: number) {

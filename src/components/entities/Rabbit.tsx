@@ -19,6 +19,7 @@ import { forEachNearbyObstacle } from '../../data/obstacles.ts';
 import { waterDepthAt } from '../../utils/river-path.ts';
 import { groundHeightAt } from '../../utils/terrain-height.ts';
 import { resolveTreeCollisions } from '../../utils/tree-collision.ts';
+import { heightCapForce, SNOW_HEIGHT } from '../../utils/terrain-avoidance.ts';
 import { useSteering } from '../../hooks/useSteering.ts';
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
 import {
@@ -38,8 +39,8 @@ import IntentionOverlay from './IntentionOverlay.tsx';
 
 const MATING_PAUSE_DURATION = 2.0;
 const BABY_SPEED_MULTIPLIER = 0.6;
-const BABY_HUNGER_RATE = 0.025;
-const ADULT_HUNGER_RATE = 0.012;
+const BABY_HUNGER_RATE = 0.012;
+const ADULT_HUNGER_RATE = 0.006;
 const RABBIT_BREED_THRESHOLD = 0.7;
 const RABBIT_OBSTACLE_QUERY_RADIUS = 1.4;
 
@@ -562,6 +563,11 @@ export default function Rabbit({ data }: RabbitProps) {
         tempForce.add(tempTarget);
       }
     });
+
+    // Snow avoidance — no walking on snow
+    const [snowFx, snowFz] = heightCapForce(pos.x, pos.z, SNOW_HEIGHT, 5, 15);
+    tempForce.x += snowFx;
+    tempForce.z += snowFz;
 
     // Apply physics
     applyForces(pos, vel, tempForce, delta);

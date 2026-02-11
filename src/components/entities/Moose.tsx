@@ -12,6 +12,7 @@ import { forEachNearbyObstacle } from '../../data/obstacles.ts';
 import { waterDepthAt } from '../../utils/river-path.ts';
 import { groundHeightAt } from '../../utils/terrain-height.ts';
 import { resolveTreeCollisions } from '../../utils/tree-collision.ts';
+import { heightCapForce, SNOW_HEIGHT } from '../../utils/terrain-avoidance.ts';
 import { useSteering } from '../../hooks/useSteering.ts';
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
 import {
@@ -146,6 +147,11 @@ export default function Moose({ data }: MooseProps) {
         tempForce.z += (dz / dist) * strength;
       }
     });
+
+    // Snow avoidance — no walking on snow
+    const [snowFx, snowFz] = heightCapForce(pos.x, pos.z, SNOW_HEIGHT, 5, 15);
+    tempForce.x += snowFx;
+    tempForce.z += snowFz;
 
     applyForces(pos, vel, tempForce, delta);
     resolveTreeCollisions(pos, vel, 0.85);

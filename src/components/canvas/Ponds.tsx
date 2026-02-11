@@ -36,7 +36,7 @@ export default function Ponds() {
   )
 
   const particleData = useMemo(() => {
-    const perPond = 180
+    const perPond = 100
     const total = WATER_PONDS.length * perPond
     const positions = new Float32Array(total * 3)
     const size = new Float32Array(total)
