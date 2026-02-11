@@ -22,23 +22,43 @@ export default function Terrain() {
     position.needsUpdate = true
     geo.computeVertexNormals()
 
-    // Height + slope based coloring gives clearer readable elevation.
+    // Height + slope based coloring with muted tones for a more natural palette.
     const normal = geo.attributes.normal
     for (let i = 0; i < position.count; i++) {
       const y = position.getZ(i)
       const slope = 1 - Math.abs(normal.getZ(i))
 
-      // Blend grass -> dry grass -> rocky tint with elevation and slope.
-      if (y > 2.8) {
-        color.set('#778067')
+      if (y > 38) {
+        // Snow caps (adjusted for lower mountain)
+        color.set('#ffffff')
+      } else if (y > 18) {
+        // Mountain rock (grey)
+        color.set('#6f6a63')
+      } else if (y > 5) {
+        // Higher elevation grass: muted pine green
+        color.set('#4f7250')
       } else if (y > 1.2) {
-        color.set('#5f7e46')
+        // Midland grass: olive-leaning to reduce contrast with dirt
+        color.set('#5e7d58')
+      } else if (y > 0.0) {
+        // Transitional lowland: grass-dirt blend close to shore
+        color.set('#6a7d5f')
+      } else if (y < 0.0) {
+        // Underwater silt/sand, kept muted to avoid harsh yellow contrast
+        color.set('#8d8363')
       } else {
-        color.set('#4a7c3f')
+        // Shoreline fallback
+        color.set('#6c805f')
       }
 
       if (slope > 0.35) {
-        color.lerp(new Color('#6f6a5c'), Math.min(0.45, (slope - 0.35) * 0.9))
+        // Rocky slopes blend with warm grey-brown
+        color.lerp(new Color('#5a554d'), Math.min(0.55, (slope - 0.35) * 1.4))
+      }
+
+      // Slightly darken underwater parts for depth effect
+      if (y < -0.5) {
+        color.lerp(new Color('#3b3528'), Math.min(0.5, -y * 0.28))
       }
 
       colors.push(color.r, color.g, color.b)

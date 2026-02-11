@@ -38,6 +38,7 @@ const rippleVert = /* glsl */ `
 `
 
 const rippleFrag = /* glsl */ `
+  uniform float uLightIntensity;
   varying float vAge;
   varying float vMaxAge;
 
@@ -45,7 +46,7 @@ const rippleFrag = /* glsl */ `
     float progress = vAge / vMaxAge;
     // Fade out as ripple expands
     float alpha = (1.0 - progress) * 0.4;
-    vec3 color = vec3(0.75, 0.85, 0.95);
+    vec3 color = vec3(0.75, 0.85, 0.95) * uLightIntensity;
     gl_FragColor = vec4(color, alpha);
   }
 `
@@ -66,13 +67,15 @@ const splashVert = /* glsl */ `
 `
 
 const splashFrag = /* glsl */ `
+  uniform float uLightIntensity;
   varying float vAlpha;
 
   void main() {
     float d = length(gl_PointCoord - vec2(0.5));
     if (d > 0.5) discard;
     float a = vAlpha * (1.0 - smoothstep(0.1, 0.5, d));
-    gl_FragColor = vec4(0.82, 0.9, 0.98, a);
+    vec3 color = vec3(0.82, 0.9, 0.98) * uLightIntensity;
+    gl_FragColor = vec4(color, a);
   }
 `
 
@@ -171,6 +174,7 @@ export default function WaterSplashes() {
     geo.setIndex(allIdx)
 
     const mat = new THREE.ShaderMaterial({
+      uniforms: { uLightIntensity: { value: 1.0 } },
       vertexShader: rippleVert,
       fragmentShader: rippleFrag,
       transparent: true,
@@ -193,6 +197,7 @@ export default function WaterSplashes() {
     geo.setAttribute('aAlpha', new THREE.Float32BufferAttribute(alphas, 1))
 
     const mat = new THREE.ShaderMaterial({
+      uniforms: { uLightIntensity: { value: 1.0 } },
       vertexShader: splashVert,
       fragmentShader: splashFrag,
       transparent: true,
@@ -204,6 +209,22 @@ export default function WaterSplashes() {
 
   useFrame((_s, delta) => {
     if (state.paused) return
+
+    // Update time of day lighting
+    const timeOfDay = state.timeOfDay
+    let intensity = 0.25
+    if (timeOfDay > 0.08 && timeOfDay < 0.2) {
+      // Dawn
+      intensity = 0.25 + ((timeOfDay - 0.08) / 0.12) * 0.75
+    } else if (timeOfDay >= 0.2 && timeOfDay < 0.7) {
+      // Day
+      intensity = 1.0
+    } else if (timeOfDay >= 0.7 && timeOfDay < 0.82) {
+      // Dusk
+      intensity = 1.0 - ((timeOfDay - 0.7) / 0.12) * 0.75
+    }
+    rippleMat.uniforms.uLightIntensity.value = intensity
+    splashMat.uniforms.uLightIntensity.value = intensity
 
     // Collect entities currently in water
     const inWater: { id: string; x: number; z: number; speed: number }[] = []

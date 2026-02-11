@@ -1,12 +1,14 @@
 import { useRef, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Color, Vector3 } from 'three'
+import { Sky } from '@react-three/drei'
 import type { DirectionalLight, AmbientLight } from 'three'
 import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
 import {
   DAY_DURATION,
   WORLD_SIZE,
 } from '../../types/ecosystem.ts'
+import SkyLife from './SkyLife.tsx'
 
 // Color palettes for different times of day
 const SKY_COLORS = {
@@ -158,6 +160,7 @@ export default function WeatherSystem() {
 
   const sunRef = useRef<DirectionalLight>(null!)
   const ambientRef = useRef<AmbientLight>(null!)
+  const skyRef = useRef<any>(null)
 
   const sunPos = useMemo(() => new Vector3(), [])
   const tempColor = useMemo(() => new Color(), [])
@@ -200,6 +203,15 @@ export default function WeatherSystem() {
     sunRef.current.target.position.set(0, 0, 0)
     sunRef.current.target.updateMatrixWorld()
 
+    if (skyRef.current?.material?.uniforms) {
+      const uniforms = skyRef.current.material.uniforms
+      uniforms.sunPosition.value.copy(sunPos)
+      uniforms.rayleigh.value = isDay ? 2.2 : 0.52
+      uniforms.turbidity.value = isDay ? 8.5 : 11
+      uniforms.mieCoefficient.value = 0.005
+      uniforms.mieDirectionalG.value = 0.84
+    }
+
     // Sun intensity & color
     const sunIntensity = getSunIntensity(t) * rainDim
     sunRef.current.intensity = sunIntensity
@@ -228,6 +240,16 @@ export default function WeatherSystem() {
 
   return (
     <>
+      <Sky
+        ref={skyRef}
+        distance={WORLD_SIZE * 8}
+        sunPosition={[0, 1, 0]}
+        turbidity={8.5}
+        rayleigh={2.2}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.84}
+      />
+      <SkyLife />
       <ambientLight ref={ambientRef} intensity={0.5} />
       <directionalLight
         ref={sunRef}

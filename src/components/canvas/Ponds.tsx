@@ -98,31 +98,34 @@ export default function Ponds() {
     <group>
       {WATER_PONDS.map((pond, i) => {
         const [x, z] = pond.center
-        const baseY = groundHeightAt(x, z)
+        // We place the pond visuals at absolute height relative to water table
+        // Terrain is already carved down to form the bed.
         return (
-          <group key={i} position={[x, baseY, z]}>
-            {/* Pond bed */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -pond.maxDepth * 0.45, 0]} receiveShadow>
-              <shapeGeometry args={[pondShapes[i].bed]} />
-              <meshStandardMaterial color="#3f4a58" roughness={1} metalness={0} />
-            </mesh>
+          <group key={i} position={[x, 0, z]}>
             {/* Water surface with subtle, slow movement */}
             <mesh
               ref={(el) => { surfaceRefs.current[i] = el; }}
               rotation={[-Math.PI / 2, 0, 0]}
-              position={[0, 0.02, 0]}
+              position={[0, 0.06, 0]}
             >
               <shapeGeometry args={[pondShapes[i].water]} />
-              <meshStandardMaterial color="#2a75ad" transparent opacity={0.62} roughness={0.3} metalness={0.06} />
+              <meshStandardMaterial
+                color="#4f8497"
+                transparent
+                opacity={0.5}
+                roughness={0.22}
+                metalness={0.03}
+                depthWrite={false}
+              />
             </mesh>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.07, 0]}>
               <shapeGeometry args={[pondShapes[i].water]} />
-              <meshBasicMaterial color="#7fb4d8" transparent opacity={0.12} />
+              <meshBasicMaterial color="#9bc4cf" transparent opacity={0.09} depthWrite={false} />
             </mesh>
             {/* Soft shoreline tint */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.065, 0]}>
               <shapeGeometry args={[pondShapes[i].shore]} />
-              <meshBasicMaterial color="#96bba5" transparent opacity={0.24} />
+              <meshBasicMaterial color="#8ea68c" transparent opacity={0.1} depthWrite={false} />
             </mesh>
           </group>
         )

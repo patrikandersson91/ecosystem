@@ -23,10 +23,14 @@ interface MooseProps {
 }
 
 const MOOSE_HUNGER_RATE = 0.00025
-const MOOSE_THIRST_RATE = 0.0015
+const MOOSE_THIRST_RATE = 0.001
 
 export default function Moose({ data }: MooseProps) {
   const groupRef = useRef<Group>(null!)
+  const flLegRef = useRef<Group>(null!)
+  const frLegRef = useRef<Group>(null!)
+  const blLegRef = useRef<Group>(null!)
+  const brLegRef = useRef<Group>(null!)
   const state = useEcosystem()
   const dispatch = useEcosystemDispatch()
 
@@ -141,6 +145,22 @@ export default function Moose({ data }: MooseProps) {
     const speed = vel.length()
     if (speed > 0.08) {
       groupRef.current.rotation.y = Math.atan2(vel.x, vel.z)
+
+      // Animate legs
+      const t = state.time * 20 // Speed of animation
+      // Diagonal pairs move together
+      const leg1Angle = Math.sin(t) * 0.4
+
+      if (flLegRef.current) flLegRef.current.rotation.x = leg1Angle
+      if (brLegRef.current) brLegRef.current.rotation.x = leg1Angle
+      if (frLegRef.current) frLegRef.current.rotation.x = -leg1Angle
+      if (blLegRef.current) blLegRef.current.rotation.x = -leg1Angle
+    } else {
+      // Idle pose
+      if (flLegRef.current) flLegRef.current.rotation.x = 0
+      if (brLegRef.current) brLegRef.current.rotation.x = 0
+      if (frLegRef.current) frLegRef.current.rotation.x = 0
+      if (blLegRef.current) blLegRef.current.rotation.x = 0
     }
 
     syncTimer.current += delta
@@ -195,22 +215,37 @@ export default function Moose({ data }: MooseProps) {
             <boxGeometry args={[0.23, 0.06, 0.05]} />
             <meshStandardMaterial color="#d6c4a2" />
           </mesh>
-          <mesh position={[-0.2, -0.28, 0.25]} castShadow>
-            <boxGeometry args={[0.1, 0.34, 0.1]} />
-            <meshStandardMaterial color="#4b311f" />
-          </mesh>
-          <mesh position={[0.2, -0.28, 0.25]} castShadow>
-            <boxGeometry args={[0.1, 0.34, 0.1]} />
-            <meshStandardMaterial color="#4b311f" />
-          </mesh>
-          <mesh position={[-0.2, -0.28, -0.3]} castShadow>
-            <boxGeometry args={[0.1, 0.34, 0.1]} />
-            <meshStandardMaterial color="#4b311f" />
-          </mesh>
-          <mesh position={[0.2, -0.28, -0.3]} castShadow>
-            <boxGeometry args={[0.1, 0.34, 0.1]} />
-            <meshStandardMaterial color="#4b311f" />
-          </mesh>
+{/* Front Left Leg */}
+          <group ref={flLegRef} position={[-0.2, -0.11, 0.25]}>
+            <mesh position={[0, -0.17, 0]} castShadow>
+              <boxGeometry args={[0.1, 0.34, 0.1]} />
+              <meshStandardMaterial color="#4b311f" />
+            </mesh>
+          </group>
+
+          {/* Front Right Leg */}
+          <group ref={frLegRef} position={[0.2, -0.11, 0.25]}>
+            <mesh position={[0, -0.17, 0]} castShadow>
+              <boxGeometry args={[0.1, 0.34, 0.1]} />
+              <meshStandardMaterial color="#4b311f" />
+            </mesh>
+          </group>
+
+          {/* Back Left Leg */}
+          <group ref={blLegRef} position={[-0.2, -0.11, -0.3]}>
+            <mesh position={[0, -0.17, 0]} castShadow>
+              <boxGeometry args={[0.1, 0.34, 0.1]} />
+              <meshStandardMaterial color="#4b311f" />
+            </mesh>
+          </group>
+
+          {/* Back Right Leg */}
+          <group ref={brLegRef} position={[0.2, -0.11, -0.3]}>
+            <mesh position={[0, -0.17, 0]} castShadow>
+              <boxGeometry args={[0.1, 0.34, 0.1]} />
+              <meshStandardMaterial color="#4b311f" />
+            </mesh>
+          </group>
           <mesh position={[0, 0.15, -0.64]} rotation={[0.5, 0, 0]}>
             <capsuleGeometry args={[0.06, 0.25, 4, 6]} />
             <meshStandardMaterial color="#5a3d25" />

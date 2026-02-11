@@ -35,6 +35,7 @@ export default function Grass() {
       if (isInWater(x, z, 0.8)) continue
 
       const y = groundHeightAt(x, z)
+      if (y > 18) continue // Skip rocky mountain elevation
       const s = 0.3 + rng() * 0.55
       dummy.position.set(x, y + s * 0.2, z)
       dummy.rotation.set(0, rng() * Math.PI * 2, (rng() - 0.5) * 0.15)
@@ -42,8 +43,9 @@ export default function Grass() {
       dummy.updateMatrix()
 
       matrixList.push(dummy.matrix.clone())
-      const shade = 0.82 + rng() * 0.3
-      colorList.push(new Color(0.26 * shade, 0.57 * shade, 0.2 * shade))
+      const shade = 0.84 + rng() * 0.24
+      // Keep grass closer to earthy tones so it blends into dirt/shore transitions.
+      colorList.push(new Color(0.31 * shade, 0.53 * shade, 0.27 * shade))
       placed++
     }
 

@@ -101,6 +101,40 @@ function generateCornerForestPositions(
 
   return pts
 }
+function generateRandomGroves(
+  numGroves: number,
+  treesPerGrove: number,
+  groveRadius: number,
+  riverBuffer: number,
+  existing: [number, number, number][],
+  minDist: number,
+  rng: () => number,
+): [number, number, number][] {
+  const allPts: [number, number, number][] = []
+  let currentExisting = [...existing]
+
+  for (let i = 0; i < numGroves; i++) {
+    // Pick a random center for the grove
+    const cx = (rng() - 0.5) * WORLD_SIZE * 1.5
+    const cz = (rng() - 0.5) * WORLD_SIZE * 1.5
+
+    // Generate trees for this grove
+    // We use a derived existing array so trees within a grove check against previous groves
+    const grovePts = generateClusteredPositions(
+      treesPerGrove,
+      [cx, cz],
+      groveRadius,
+      riverBuffer,
+      currentExisting,
+      minDist,
+      rng
+    )
+
+    allPts.push(...grovePts)
+    currentExisting = [...currentExisting, ...grovePts]
+  }
+  return allPts
+}
 
 // Use seeded RNG so positions are stable across renders and components
 const rng = seededRandom(42)
@@ -111,7 +145,7 @@ const FOREST_EDGE_CENTER: [number, number] = [-WORLD_SIZE * 0.18, WORLD_SIZE * 0
 const CORNER_FOREST_CENTER: [number, number] = [WORLD_SIZE * 0.62, -WORLD_SIZE * 0.62]
 
 export const TREE_POSITIONS = generatePositions(
-  Math.floor(32 * DENSITY_SCALE),
+  Math.floor(60 * DENSITY_SCALE), // Increased from 32
   1.8,
   TREE_WATER_BUFFER,
   [],
@@ -119,50 +153,72 @@ export const TREE_POSITIONS = generatePositions(
   rng,
 )
 export const DENSE_FOREST_TREE_POSITIONS = generateClusteredPositions(
-  Math.floor(42 * DENSITY_SCALE),
+  Math.floor(120 * DENSITY_SCALE), // Increased from 42
   FOREST_CENTER,
-  WORLD_SIZE * 0.18,
+  WORLD_SIZE * 0.22, // Slightly larger radius
   TREE_WATER_BUFFER,
   TREE_POSITIONS,
-  2.3,
+  2.2,
   rng,
 )
 export const FOREST_EDGE_TREE_POSITIONS = generateClusteredPositions(
-  Math.floor(24 * DENSITY_SCALE),
+  Math.floor(50 * DENSITY_SCALE), // Increased from 24
   FOREST_EDGE_CENTER,
-  WORLD_SIZE * 0.14,
+  WORLD_SIZE * 0.16,
   TREE_WATER_BUFFER,
   [...TREE_POSITIONS, ...DENSE_FOREST_TREE_POSITIONS],
-  2.3,
+  2.2, // Slightly closer
   rng,
 )
 export const CORNER_FOREST_TREE_POSITIONS = generateCornerForestPositions(
-  Math.floor(28 * DENSITY_SCALE),
+  Math.floor(60 * DENSITY_SCALE), // Increased from 28
   CORNER_FOREST_CENTER,
   WORLD_SIZE * 0.16,
   WORLD_SIZE * 0.09,
   -WORLD_SIZE * 0.04,
   TREE_WATER_BUFFER,
   [...TREE_POSITIONS, ...DENSE_FOREST_TREE_POSITIONS, ...FOREST_EDGE_TREE_POSITIONS],
-  2.3,
+  2.2,
   rng,
 )
-export const STONE_POSITIONS = generatePositions(Math.floor(25 * DENSITY_SCALE), 1.6, 0.5, TREE_POSITIONS, 2, rng)
+
+// Generate 12 random groves with ~15 trees each
+export const RANDOM_GROVE_POSITIONS = generateRandomGroves(
+  12,
+  Math.floor(15 * DENSITY_SCALE),
+  WORLD_SIZE * 0.08,
+  TREE_WATER_BUFFER,
+  [
+    ...TREE_POSITIONS,
+    ...DENSE_FOREST_TREE_POSITIONS,
+    ...FOREST_EDGE_TREE_POSITIONS,
+    ...CORNER_FOREST_TREE_POSITIONS
+  ],
+  2.0,
+  rng
+)
+
+const ALL_TREES = [
+  ...TREE_POSITIONS,
+  ...DENSE_FOREST_TREE_POSITIONS,
+  ...FOREST_EDGE_TREE_POSITIONS,
+  ...CORNER_FOREST_TREE_POSITIONS,
+  ...RANDOM_GROVE_POSITIONS,
+]
+
+export const STONE_POSITIONS = generatePositions(Math.floor(35 * DENSITY_SCALE), 1.6, 0.5, ALL_TREES, 2, rng)
 export const BUSH_POSITIONS = generatePositions(
-  Math.floor(35 * DENSITY_SCALE),
+  Math.floor(50 * DENSITY_SCALE),
   1.7,
   0.8,
-  [...TREE_POSITIONS, ...STONE_POSITIONS],
+  [...ALL_TREES, ...STONE_POSITIONS],
   1.8,
   rng,
 )
 
 // Flat list of all obstacles for collision avoidance
 export const ALL_OBSTACLES: Obstacle[] = [
-  ...TREE_POSITIONS.map(p => ({ position: p, radius: 1.0 })),
-  ...DENSE_FOREST_TREE_POSITIONS.map(p => ({ position: p, radius: 1.0 })),
-  ...FOREST_EDGE_TREE_POSITIONS.map(p => ({ position: p, radius: 1.0 })),
-  ...CORNER_FOREST_TREE_POSITIONS.map(p => ({ position: p, radius: 1.0 })),
+  ...ALL_TREES.map(p => ({ position: p, radius: 1.0 })),
   ...STONE_POSITIONS.map(p => ({ position: p, radius: 0.8 })),
   ...BUSH_POSITIONS.map(p => ({ position: p, radius: 0.6 })),
 ]

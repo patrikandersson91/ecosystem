@@ -40,6 +40,16 @@ export const WATER_PONDS: WaterPond[] = [
     lobeB: 0.14,
     jitter: 0.07,
   },
+  {
+    // New lake on the positive Z side (the "other" side).
+    center: [WORLD_SIZE * 0.3, WORLD_SIZE * 0.6],
+    radius: WORLD_SIZE * 0.12,
+    maxDepth: 2.8,
+    shapePhase: 1.4,
+    lobeA: 0.18,
+    lobeB: 0.12,
+    jitter: 0.05,
+  },
 ]
 
 /** Returns the z-center of the river at a given x position. */

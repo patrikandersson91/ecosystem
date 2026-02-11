@@ -1,6 +1,10 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { useEcosystem } from '../../state/ecosystem-context'
+/* eslint-disable react-hooks/exhaustive-deps */
+// @ts-ignore
+/* eslint-disable */
 import { riverCenterZ, RIVER_HALF_LENGTH, RIVER_WIDTH, RIVER_MAX_DEPTH } from '../../utils/river-path'
 import { WORLD_SCALE } from '../../types/ecosystem.ts'
 
@@ -8,7 +12,7 @@ const SEGMENTS_X = Math.max(128, Math.floor(128 * WORLD_SCALE))
 const SEGMENTS_Z = 16
 const RIVER_LENGTH = RIVER_HALF_LENGTH * 2
 
-const PARTICLE_COUNT = Math.floor(1200 * WORLD_SCALE)
+const PARTICLE_COUNT = Math.floor(2500 * WORLD_SCALE)
 
 // ─── Riverbed shaders ─────────────────────────────────────────
 const riverbedVert = /* glsl */ `
@@ -39,6 +43,7 @@ const waterVert = /* glsl */ `
   varying vec2 vUv;
   varying float vEdge;
   varying float vWaveHeight;
+  varying float vViewDepth;
   uniform float uTime;
 
   void main() {
@@ -53,61 +58,48 @@ const waterVert = /* glsl */ `
     pos.y += totalWave;
     vWaveHeight = totalWave;
 
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+    vViewDepth = -mv.z;
+    gl_Position = projectionMatrix * mv;
   }
 `
 
-const waterFrag = /* glsl */ `
-  uniform float uTime;
-  uniform vec3 uDeepColor;
-  uniform vec3 uShallowColor;
-  uniform float uOpacity;
-  varying vec2 vUv;
-  varying float vEdge;
-  varying float vWaveHeight;
-
-  void main() {
-    // Flow UVs — everything scrolls in one direction
-    float flowSpeed = 0.06;
-    vec2 flow1 = vec2(vUv.x + uTime * flowSpeed, vUv.y);
-    vec2 flow2 = vec2(vUv.x + uTime * flowSpeed * 0.7, vUv.y * 1.3 + uTime * 0.008);
-
-    float r1 = sin(flow1.x * 20.0 + flow1.y * 8.0) * 0.5 + 0.5;
-    float r2 = sin(flow2.x * 15.0 - flow2.y * 12.0 + 0.5) * 0.5 + 0.5;
-    float ripple = r1 * r2;
-
-    float depth = 1.0 - vEdge;
-    float depthCurve = depth * depth;
-
-    // Pure blue palette — no green channel bias
-    vec3 color = mix(uShallowColor, uDeepColor, depthCurve * 0.8 + ripple * 0.1);
-
-    // Blue-white specular highlights
-    float spec = pow(ripple, 8.0) * 0.25 * depth;
-    color += vec3(spec * 0.7, spec * 0.75, spec);
-
-    // Whitecaps on wave crests
-    float crest = smoothstep(0.06, 0.14, vWaveHeight);
-    color = mix(color, vec3(0.78, 0.85, 0.95), crest * 0.25);
-
-    // Fully transparent at edges — no border visible at all
-    float edgeFade = smoothstep(1.0, 0.45, vEdge);
-    float alpha = uOpacity * edgeFade * (0.35 + depthCurve * 0.55);
-
-    gl_FragColor = vec4(color, alpha);
-  }
-`
 
 // ─── Particle shaders ──────────────────────────────────────────
 
 const pointVert = /* glsl */ `
+  uniform float uTime;
+  uniform float uRiverLength;
+
   attribute float aSize;
   attribute float aAlpha;
+  attribute float aVelocity;
+  attribute float aPhase;
+  attribute float aOffsetZ;
+  
   varying float vAlpha;
+
+  // Function to calculate center Z (matches JS implementation)
+  float getRiverCenterZ(float x) {
+    return 6.0 * sin(x * 0.1) + 3.0 * sin(x * 0.17 + 1.2);
+  }
 
   void main() {
     vAlpha = aAlpha;
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    
+    // Calculate X position with wrap-around
+    float xDist = aVelocity * uTime;
+    float xBase = position.x;
+    float x = mod(xBase - xDist + uRiverLength * 0.5, uRiverLength) - uRiverLength * 0.5;
+    
+    // Calculate Z position based on river curve
+    float cz = getRiverCenterZ(x);
+    float z = cz + aOffsetZ;
+    
+    // Calculate Y (bobbing) above the new water level
+    float y = 0.12 + sin(uTime * 2.0 + aPhase) * 0.025;
+    
+    vec4 mv = modelViewMatrix * vec4(x, y, z, 1.0);
     gl_PointSize = aSize * (80.0 / -mv.z);
     gl_Position = projectionMatrix * mv;
   }
@@ -115,13 +107,17 @@ const pointVert = /* glsl */ `
 
 const pointFrag = /* glsl */ `
   uniform vec3 uColor;
+  uniform float uLightIntensity;
   varying float vAlpha;
 
   void main() {
     float d = length(gl_PointCoord - vec2(0.5));
     if (d > 0.5) discard;
     float a = vAlpha * (1.0 - smoothstep(0.1, 0.5, d));
-    gl_FragColor = vec4(uColor, a);
+    
+    // Darken particles at night
+    vec3 finalColor = uColor * uLightIntensity;
+    gl_FragColor = vec4(finalColor, a);
   }
 `
 
@@ -129,6 +125,7 @@ const pointFrag = /* glsl */ `
 
 export default function River() {
   const timeRef = useRef(0)
+  const state = useEcosystem()
 
   // --- riverbed mesh — narrower than the water so edges never show ---
   const { riverbedGeo, riverbedMat } = useMemo(() => {
@@ -188,7 +185,7 @@ export default function River() {
       const cz = riverCenterZ(x)
       for (let iz = 0; iz <= SEGMENTS_Z; iz++) {
         const tz = iz / SEGMENTS_Z
-        positions.push(x, 0.02, cz + (tz - 0.5) * RIVER_WIDTH)
+        positions.push(x, 0.06, cz + (tz - 0.5) * RIVER_WIDTH)
         uvs.push(tx * 10, tz)
       }
     }
@@ -211,12 +208,68 @@ export default function River() {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uDeepColor: { value: new THREE.Color('#0a3a6a') },
-        uShallowColor: { value: new THREE.Color('#2a7ab8') },
-        uOpacity: { value: 0.82 },
+        uDeepColor: { value: new THREE.Color('#2a5b70') },
+        uShallowColor: { value: new THREE.Color('#5f96a7') },
+        uFoamColor: { value: new THREE.Color('#dce8ec') },
+        uOpacity: { value: 0.64 },
+        uLightIntensity: { value: 1.0 },
       },
       vertexShader: waterVert,
-      fragmentShader: waterFrag,
+      fragmentShader: /* glsl */ `
+        uniform float uTime;
+        uniform vec3 uDeepColor;
+        uniform vec3 uShallowColor;
+        uniform vec3 uFoamColor;
+        uniform float uOpacity;
+        uniform float uLightIntensity;
+        varying vec2 vUv;
+        varying float vEdge;
+        varying float vWaveHeight;
+        varying float vViewDepth;
+
+        void main() {
+          // Flow UVs — everything scrolls in one direction
+          float flowSpeed = 0.06;
+          vec2 flow1 = vec2(vUv.x + uTime * flowSpeed, vUv.y);
+          vec2 flow2 = vec2(vUv.x + uTime * flowSpeed * 0.7, vUv.y * 1.3 + uTime * 0.008);
+
+          float r1 = sin(flow1.x * 20.0 + flow1.y * 8.0) * 0.5 + 0.5;
+          float r2 = sin(flow2.x * 15.0 - flow2.y * 12.0 + 0.5) * 0.5 + 0.5;
+          float ripple = r1 * r2;
+
+          float depth = 1.0 - vEdge; // 1 at center, 0 at edge
+          float depthCurve = depth * depth;
+
+          // Base water color
+          vec3 color = mix(uShallowColor, uDeepColor, depthCurve * 0.8 + ripple * 0.1);
+          float distFade = smoothstep(35.0, 170.0, vViewDepth);
+
+          // Softer highlights so distant water stays calm and transparent.
+          float spec = pow(ripple, 8.0) * 0.16 * depth * (1.0 - distFade * 0.65);
+          color += vec3(spec);
+
+          // Foam at edges (where depth is low)
+          float foamMask = smoothstep(0.15, 0.0, depth - ripple * 0.1); // High near edges
+          color = mix(color, uFoamColor, foamMask * 0.3 * (1.0 - distFade * 0.6));
+
+          // Whitecaps on wave crests
+          float crest = smoothstep(0.06, 0.14, vWaveHeight);
+          color = mix(color, uFoamColor, crest * 0.18 * (1.0 - distFade * 0.7));
+
+          // Distant water shifts gently toward mid-tone and less saturation.
+          vec3 distantTint = mix(uShallowColor, uDeepColor, 0.5);
+          color = mix(color, distantTint, distFade * 0.22);
+
+          // Apply light intensity (reaction to day/night)
+          color *= uLightIntensity;
+
+          // Opacity fade at very edges
+          float edgeFade = smoothstep(0.0, 0.1, depth);
+          float alpha = uOpacity * edgeFade * mix(1.0, 0.72, distFade);
+
+          gl_FragColor = vec4(color, alpha);
+        }
+      `,
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false,
@@ -224,40 +277,51 @@ export default function River() {
     return { geometry: geo, waterMat: mat }
   }, [])
 
-  // --- flowing water particles (no additive blending — pure white/blue) ---
-  const { particleGeo, particleMat, pVelocities, pPhases } = useMemo(() => {
+  // --- flowing water particles (GPU animated) ---
+  const { particleGeo, particleMat } = useMemo(() => {
     const pos = new Float32Array(PARTICLE_COUNT * 3)
     const sizes = new Float32Array(PARTICLE_COUNT)
     const alphas = new Float32Array(PARTICLE_COUNT)
     const vel = new Float32Array(PARTICLE_COUNT)
     const ph = new Float32Array(PARTICLE_COUNT)
+    const offsetZ = new Float32Array(PARTICLE_COUNT)
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const x = (Math.random() - 0.5) * RIVER_LENGTH
-      const cz = riverCenterZ(x)
+      // Position x holds the initial x. y, z unused for position input (z calc in shader)
       pos[i * 3] = x
-      pos[i * 3 + 1] = 0.05 + Math.random() * 0.04
-      pos[i * 3 + 2] = cz + (Math.random() - 0.5) * RIVER_WIDTH * 0.7
+      pos[i * 3 + 1] = 0 
+      pos[i * 3 + 2] = 0 
+      
       sizes[i] = 0.12 + Math.random() * 0.28
       alphas[i] = 0.06 + Math.random() * 0.12
       vel[i] = 1.0 + Math.random() * 2.5
       ph[i] = Math.random() * Math.PI * 2
+      offsetZ[i] = (Math.random() - 0.5) * RIVER_WIDTH * 0.7
     }
 
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
     geo.setAttribute('aSize', new THREE.Float32BufferAttribute(sizes, 1))
     geo.setAttribute('aAlpha', new THREE.Float32BufferAttribute(alphas, 1))
+    geo.setAttribute('aVelocity', new THREE.Float32BufferAttribute(vel, 1))
+    geo.setAttribute('aPhase', new THREE.Float32BufferAttribute(ph, 1))
+    geo.setAttribute('aOffsetZ', new THREE.Float32BufferAttribute(offsetZ, 1))
 
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color('#ffffff') } },
+      uniforms: { 
+        uColor: { value: new THREE.Color('#ffffff') },
+        uTime: { value: 0 },
+        uRiverLength: { value: RIVER_LENGTH },
+        uLightIntensity: { value: 1.0 }
+      },
       vertexShader: pointVert,
       fragmentShader: pointFrag,
       transparent: true,
       depthWrite: false,
       blending: THREE.NormalBlending,
     })
-    return { particleGeo: geo, particleMat: mat, pVelocities: vel, pPhases: ph }
+    return { particleGeo: geo, particleMat: mat }
   }, [])
 
   // --- animation loop ---
@@ -266,26 +330,25 @@ export default function River() {
     const t = timeRef.current
 
     waterMat.uniforms.uTime.value = t
+    particleMat.uniforms.uTime.value = t
 
-    // flowing particles: drift along -X, bob, stay in river
-    const pp = particleGeo.attributes.position as THREE.BufferAttribute
-    const pArr = pp.array as Float32Array
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const i3 = i * 3
-      pArr[i3] -= pVelocities[i] * delta
-      if (pArr[i3] < -RIVER_LENGTH / 2) {
-        pArr[i3] = RIVER_LENGTH / 2
-        const cz = riverCenterZ(pArr[i3])
-        pArr[i3 + 2] = cz + (Math.random() - 0.5) * RIVER_WIDTH * 0.7
-      }
-      const cz = riverCenterZ(pArr[i3])
-      const dz = pArr[i3 + 2] - cz
-      if (Math.abs(dz) > RIVER_WIDTH * 0.35) {
-        pArr[i3 + 2] = cz + Math.sign(dz) * RIVER_WIDTH * 0.35
-      }
-      pArr[i3 + 1] = 0.05 + Math.sin(t * 2 + pPhases[i]) * 0.025
+    // Calculate light intensity from time of day
+    // Night: 0.2, Day: 1.0. Transitions at 0.1 and 0.7
+    const timeOfDay = state.timeOfDay
+    let intensity = 0.25
+    if (timeOfDay > 0.08 && timeOfDay < 0.2) {
+      // Dawn
+      intensity = 0.25 + ((timeOfDay - 0.08) / 0.12) * 0.75
+    } else if (timeOfDay >= 0.2 && timeOfDay < 0.7) {
+      // Day
+      intensity = 1.0
+    } else if (timeOfDay >= 0.7 && timeOfDay < 0.82) {
+      // Dusk
+      intensity = 1.0 - ((timeOfDay - 0.7) / 0.12) * 0.75
     }
-    pp.needsUpdate = true
+    
+    waterMat.uniforms.uLightIntensity.value = intensity
+    particleMat.uniforms.uLightIntensity.value = intensity
   })
 
   return (

@@ -30,10 +30,14 @@ interface FoxProps {
 
 const MATING_PAUSE_DURATION = 2.5
 const FOX_HUNGER_RATE = 0.0018
-const FOX_THIRST_RATE = 0.02
+const FOX_THIRST_RATE = 0.01
 
 export default function Fox({ data }: FoxProps) {
   const groupRef = useRef<Group>(null!)
+  const flLegRef = useRef<Group>(null!)
+  const frLegRef = useRef<Group>(null!)
+  const blLegRef = useRef<Group>(null!)
+  const brLegRef = useRef<Group>(null!)
   const state = useEcosystem()
   const dispatch = useEcosystemDispatch()
   const { spawnBlood } = useDebug()
@@ -313,8 +317,23 @@ export default function Fox({ data }: FoxProps) {
       groupRef.current.rotation.y = Math.atan2(vel.x, vel.z)
       // Subtle forward lean when chasing
       groupRef.current.rotation.x = Math.min(speed / MAX_SPEED_FOX, 1) * 0.15
+
+      // Animate legs (faster than moose)
+      const t = state.time * 30
+      const legAngle = Math.sin(t) * 0.6
+
+      if (flLegRef.current) flLegRef.current.rotation.x = legAngle
+      if (brLegRef.current) brLegRef.current.rotation.x = legAngle
+      if (frLegRef.current) frLegRef.current.rotation.x = -legAngle
+      if (blLegRef.current) blLegRef.current.rotation.x = -legAngle
     } else {
       groupRef.current.rotation.x = 0
+      
+      // Idle pose
+      if (flLegRef.current) flLegRef.current.rotation.x = 0
+      if (brLegRef.current) brLegRef.current.rotation.x = 0
+      if (frLegRef.current) frLegRef.current.rotation.x = 0
+      if (blLegRef.current) blLegRef.current.rotation.x = 0
     }
 
     // Periodic state sync
@@ -397,43 +416,53 @@ export default function Fox({ data }: FoxProps) {
           <coneGeometry args={[0.04, 0.14, 4]} />
           <meshStandardMaterial color="#e8a060" />
         </mesh>
-        {/* Front left leg */}
-        <mesh position={[-0.12, -0.22, 0.2]} castShadow>
-          <boxGeometry args={[0.08, 0.2, 0.08]} />
-          <meshStandardMaterial color="#a04510" />
-        </mesh>
-        {/* Front right leg */}
-        <mesh position={[0.12, -0.22, 0.2]} castShadow>
-          <boxGeometry args={[0.08, 0.2, 0.08]} />
-          <meshStandardMaterial color="#a04510" />
-        </mesh>
-        {/* Back left leg */}
-        <mesh position={[-0.12, -0.22, -0.22]} castShadow>
-          <boxGeometry args={[0.08, 0.2, 0.08]} />
-          <meshStandardMaterial color="#a04510" />
-        </mesh>
-        {/* Back right leg */}
-        <mesh position={[0.12, -0.22, -0.22]} castShadow>
-          <boxGeometry args={[0.08, 0.2, 0.08]} />
-          <meshStandardMaterial color="#a04510" />
-        </mesh>
-        {/* Paws (white tips) */}
-        <mesh position={[-0.12, -0.32, 0.2]}>
-          <boxGeometry args={[0.09, 0.04, 0.09]} />
-          <meshStandardMaterial color="#1a1a1a" />
-        </mesh>
-        <mesh position={[0.12, -0.32, 0.2]}>
-          <boxGeometry args={[0.09, 0.04, 0.09]} />
-          <meshStandardMaterial color="#1a1a1a" />
-        </mesh>
-        <mesh position={[-0.12, -0.32, -0.22]}>
-          <boxGeometry args={[0.09, 0.04, 0.09]} />
-          <meshStandardMaterial color="#1a1a1a" />
-        </mesh>
-        <mesh position={[0.12, -0.32, -0.22]}>
-          <boxGeometry args={[0.09, 0.04, 0.09]} />
-          <meshStandardMaterial color="#1a1a1a" />
-        </mesh>
+        {/* Front Left Leg Group */}
+        <group ref={flLegRef} position={[-0.12, -0.12, 0.2]}>
+          <mesh position={[0, -0.1, 0]} castShadow>
+            <boxGeometry args={[0.08, 0.2, 0.08]} />
+            <meshStandardMaterial color="#a04510" />
+          </mesh>
+          <mesh position={[0, -0.2, 0]}>
+            <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <meshStandardMaterial color="#1a1a1a" />
+          </mesh>
+        </group>
+
+        {/* Front Right Leg Group */}
+        <group ref={frLegRef} position={[0.12, -0.12, 0.2]}>
+          <mesh position={[0, -0.1, 0]} castShadow>
+            <boxGeometry args={[0.08, 0.2, 0.08]} />
+            <meshStandardMaterial color="#a04510" />
+          </mesh>
+          <mesh position={[0, -0.2, 0]}>
+            <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <meshStandardMaterial color="#1a1a1a" />
+          </mesh>
+        </group>
+
+        {/* Back Left Leg Group */}
+        <group ref={blLegRef} position={[-0.12, -0.12, -0.22]}>
+          <mesh position={[0, -0.1, 0]} castShadow>
+            <boxGeometry args={[0.08, 0.2, 0.08]} />
+            <meshStandardMaterial color="#a04510" />
+          </mesh>
+          <mesh position={[0, -0.2, 0]}>
+            <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <meshStandardMaterial color="#1a1a1a" />
+          </mesh>
+        </group>
+
+        {/* Back Right Leg Group */}
+        <group ref={brLegRef} position={[0.12, -0.12, -0.22]}>
+          <mesh position={[0, -0.1, 0]} castShadow>
+            <boxGeometry args={[0.08, 0.2, 0.08]} />
+            <meshStandardMaterial color="#a04510" />
+          </mesh>
+          <mesh position={[0, -0.2, 0]}>
+            <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <meshStandardMaterial color="#1a1a1a" />
+          </mesh>
+        </group>
         {/* Tail - bushy */}
         <mesh position={[0, 0.12, -0.55]} rotation={[0.6, 0, 0]} castShadow>
           <capsuleGeometry args={[0.06, 0.35, 6, 6]} />
