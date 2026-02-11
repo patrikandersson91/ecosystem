@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import {
   useEcosystem,
   useEcosystemDispatch,
@@ -114,7 +115,9 @@ export default function HUD() {
       </div>
 
       {/* Log panel */}
-      {showLog && <LogPanel onClose={() => setShowLog(false)} />}
+      <AnimatePresence>
+        {showLog && <LogPanel onClose={() => setShowLog(false)} />}
+      </AnimatePresence>
 
       {/* Game Over overlay */}
       {state.gameOver && !dismissedGameOver && (

@@ -225,7 +225,7 @@ export default function Rabbit({ data }: RabbitProps) {
         if (eatingFlowerIdRef.current) {
           if (pregnantRef.current && hungerRef.current > NEED_THRESHOLD) {
             pregnantRef.current = false
-            const litterSize = Math.random() < 0.5 ? 3 : 4
+            const litterSize = 2
             for (let i = 0; i < litterSize; i++) {
               const babyPos: [number, number, number] = [
                 pos.x + (Math.random() - 0.5) * 2,
@@ -390,7 +390,7 @@ export default function Rabbit({ data }: RabbitProps) {
             targetFlowerIdRef.current = null
             if (pregnantRef.current && hungerRef.current > NEED_THRESHOLD) {
               pregnantRef.current = false
-              const litterSize = Math.random() < 0.5 ? 3 : 4
+              const litterSize = 2
               for (let i = 0; i < litterSize; i++) {
                 const babyPos: [number, number, number] = [
                   pos.x + (Math.random() - 0.5) * 2,
@@ -463,7 +463,7 @@ export default function Rabbit({ data }: RabbitProps) {
             targetFlowerIdRef.current = null
             if (pregnantRef.current) {
               pregnantRef.current = false
-              const litterSize = Math.random() < 0.5 ? 3 : 4
+              const litterSize = 2
               for (let i = 0; i < litterSize; i++) {
                 const babyPos: [number, number, number] = [
                   pos.x + (Math.random() - 0.5) * 2,

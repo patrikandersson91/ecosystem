@@ -51,11 +51,12 @@ function FlowerRegrowth() {
     if (timer.current > 0.75) {
       timer.current = 0;
       const aliveCount = state.flowers.filter((f) => f.alive).length;
-      if (aliveCount < 120) {
+      const spawnCount = aliveCount < 120 ? Math.max(1, Math.floor((120 - aliveCount) / 30)) : 0;
+      for (let i = 0; i < spawnCount; i++) {
         dispatch({
           type: 'SPAWN_FLOWER',
           flower: {
-            id: `flower_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+            id: `flower_${Date.now()}_${Math.floor(Math.random() * 10000)}_${i}`,
             position: randomFlowerPosition(),
             alive: true,
           },

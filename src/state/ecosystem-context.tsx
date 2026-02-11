@@ -172,7 +172,7 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
           const newMeals = r.mealsEaten + 1
           return {
             ...r,
-            hunger: Math.min(1, r.hunger + 0.6),
+            hunger: Math.min(1, r.hunger + 0.5),
             behavior: 'eating' as const,
             pregnant: false,
             isAdult: r.isAdult || newMeals >= 2,

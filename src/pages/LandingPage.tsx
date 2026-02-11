@@ -9,7 +9,7 @@ export default function LandingPage() {
 
   const [rabbits, setRabbits] = useState(25)
   const [foxes, setFoxes] = useState(5)
-  const [flowers, setFlowers] = useState(60)
+  const [flowers, setFlowers] = useState(80)
 
   function handleStart() {
     dispatch({

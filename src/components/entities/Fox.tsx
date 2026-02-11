@@ -10,6 +10,7 @@ import {
   WORLD_SIZE,
   FOX_MATE_RADIUS,
   FOX_MATING_COOLDOWN,
+  FOX_HUNT_THRESHOLD,
   getSightMultiplier,
 } from '../../types/ecosystem.ts'
 import { ALL_OBSTACLES } from '../../data/obstacles.ts'
@@ -66,7 +67,7 @@ export default function Fox({ data }: FoxProps) {
     entityType: 'fox',
     hunger: data.hunger,
     thirst: data.thirst,
-    hungerRate: 0.002,
+    hungerRate: 0.003,
   })
 
   const tempForce = useMemo(() => new Vector3(), [])
@@ -119,7 +120,7 @@ export default function Fox({ data }: FoxProps) {
       state.rabbits,
     )
 
-    if (nearbyRabbits.length > 0 && hungerRef.current < 0.98) {
+    if (nearbyRabbits.length > 0 && hungerRef.current < FOX_HUNT_THRESHOLD) {
       const nearest = findNearest([pos.x, pos.y, pos.z], nearbyRabbits)
       if (nearest) {
         tempTarget.set(...nearest.position)
@@ -132,7 +133,7 @@ export default function Fox({ data }: FoxProps) {
         if (pos.distanceTo(tempTarget) < 1.0) {
           spawnBlood(pos.x, 0.5, pos.z)
           dispatch({ type: 'REMOVE_RABBIT', id: nearest.id })
-          const mealValue = 0.7
+          const mealValue = 0.5
           hungerRef.current = Math.min(1, hungerRef.current + mealValue)
           dispatch({
             type: 'UPDATE_ENTITY_NEEDS',
@@ -152,7 +153,7 @@ export default function Fox({ data }: FoxProps) {
             const newMeals = (data.mealsWhilePregnant || 0) + 1
             if (newMeals >= 2) {
               pregnantRef.current = false
-              const foxLitterSize = state.foxes.length < 8 ? 1 : 0
+              const foxLitterSize = state.foxes.length < 12 ? 1 : 0
               for (let i = 0; i < foxLitterSize; i++) {
                 const babyPos: [number, number, number] = [
                   pos.x + (Math.random() - 0.5) * 3,
