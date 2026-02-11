@@ -3,16 +3,19 @@ import { useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import Terrain from './Terrain.tsx';
 import River from './River.tsx';
+import Ponds from './Ponds.tsx';
 import Trees from './Trees.tsx';
 import Bushes from './Bushes.tsx';
 import Stones from './Stones.tsx';
 import Flowers from './Flowers.tsx';
+import Grass from './Grass.tsx';
 import WeatherSystem from './WeatherSystem.tsx';
-import Rain from './Rain.tsx';
 import WaterSplashes from './WaterSplashes.tsx';
 import BloodEffects from './BloodEffects.tsx';
 import RabbitGroup from '../entities/RabbitGroup.tsx';
 import FoxGroup from '../entities/FoxGroup.tsx';
+import MooseGroup from '../entities/MooseGroup.tsx';
+import { WORLD_SIZE, WORLD_SCALE } from '../../types/ecosystem.ts';
 import {
   useEcosystem,
   useEcosystemDispatch,
@@ -51,7 +54,11 @@ function FlowerRegrowth() {
     if (timer.current > 0.75) {
       timer.current = 0;
       const aliveCount = state.flowers.filter((f) => f.alive).length;
-      const spawnCount = aliveCount < 120 ? Math.max(1, Math.floor((120 - aliveCount) / 30)) : 0;
+      const targetFlowerCount = Math.floor(120 * WORLD_SCALE);
+      const spawnCount =
+        aliveCount < targetFlowerCount
+          ? Math.max(1, Math.floor((targetFlowerCount - aliveCount) / 30))
+          : 0;
       for (let i = 0; i < spawnCount; i++) {
         dispatch({
           type: 'SPAWN_FLOWER',
@@ -72,15 +79,16 @@ export default function EcosystemScene() {
   return (
     <>
       <WeatherSystem />
-      <Rain />
       <color attach="background" args={['#87ceeb']} />
       <OrbitControls
         maxPolarAngle={Math.PI / 2.1}
         minDistance={5}
-        maxDistance={80}
+        maxDistance={WORLD_SIZE * 1.8}
       />
       <Terrain />
+      <Grass />
       <River />
+      <Ponds />
       <WaterSplashes />
       <BloodEffects />
       <Trees />
@@ -89,6 +97,7 @@ export default function EcosystemScene() {
       <Flowers />
       <RabbitGroup />
       <FoxGroup />
+      <MooseGroup />
       <FlowerRegrowth />
       <GameOverDetector />
     </>

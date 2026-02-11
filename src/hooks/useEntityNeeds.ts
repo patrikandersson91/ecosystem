@@ -4,13 +4,21 @@ import { useEcosystemDispatch } from '../state/ecosystem-context.tsx'
 
 interface UseEntityNeedsOptions {
   id: string
-  entityType: 'rabbit' | 'fox'
+  entityType: 'rabbit' | 'fox' | 'moose'
   hunger: number
   thirst: number
   hungerRate?: number
+  thirstRate?: number
 }
 
-export function useEntityNeeds({ id, entityType, hunger, thirst, hungerRate = HUNGER_RATE }: UseEntityNeedsOptions) {
+export function useEntityNeeds({
+  id,
+  entityType,
+  hunger,
+  thirst,
+  hungerRate = HUNGER_RATE,
+  thirstRate = THIRST_RATE,
+}: UseEntityNeedsOptions) {
   const dispatch = useEcosystemDispatch()
   const hungerRef = useRef(hunger)
   const thirstRef = useRef(thirst)
@@ -22,7 +30,7 @@ export function useEntityNeeds({ id, entityType, hunger, thirst, hungerRate = HU
 
   function tick(delta: number): { hunger: number; thirst: number; dead: boolean } {
     hungerRef.current = Math.max(0, hungerRef.current - hungerRate * delta)
-    thirstRef.current = Math.max(0, thirstRef.current - THIRST_RATE * delta)
+    thirstRef.current = Math.max(0, thirstRef.current - thirstRate * delta)
 
     if (hungerRef.current <= 0 || thirstRef.current <= 0) {
       dispatch({ type: 'KILL_ENTITY', id, entityType })

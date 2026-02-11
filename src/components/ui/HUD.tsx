@@ -53,6 +53,7 @@ export default function HUD() {
             detail={`${foxAdults} adult${foxAdults !== 1 ? 's' : ''}, ${foxBabies} bab${foxBabies !== 1 ? 'ies' : 'y'}`}
             color="text-orange-400"
           />
+          <Stat label="Moose" value={state.moose.length} color="text-yellow-200" />
           <Stat label="Flowers" value={aliveFlowers} color="text-pink-300" />
         </div>
 

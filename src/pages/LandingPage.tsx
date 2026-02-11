@@ -7,14 +7,15 @@ export default function LandingPage() {
   const dispatch = useEcosystemDispatch()
   const navigate = useNavigate()
 
-  const [rabbits, setRabbits] = useState(25)
-  const [foxes, setFoxes] = useState(5)
+  const [rabbits, setRabbits] = useState(30)
+  const [foxes, setFoxes] = useState(8)
+  const [moose, setMoose] = useState(3)
   const [flowers, setFlowers] = useState(80)
 
   function handleStart() {
     dispatch({
       type: 'INIT',
-      config: { initialRabbits: rabbits, initialFoxes: foxes, initialFlowers: flowers },
+      config: { initialRabbits: rabbits, initialFoxes: foxes, initialMoose: moose, initialFlowers: flowers },
     })
     navigate('/sim')
   }
@@ -48,6 +49,14 @@ export default function LandingPage() {
             min={1}
             max={15}
             color="text-orange-400"
+          />
+          <SliderField
+            label="Moose"
+            value={moose}
+            onChange={setMoose}
+            min={0}
+            max={12}
+            color="text-yellow-200"
           />
           <SliderField
             label="Flowers"

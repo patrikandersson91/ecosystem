@@ -15,11 +15,12 @@ import {
   getSightMultiplier,
 } from '../../types/ecosystem.ts'
 import { ALL_OBSTACLES } from '../../data/obstacles.ts'
-import { riverDepthAt } from '../../utils/river-path.ts'
+import { waterDepthAt } from '../../utils/river-path.ts'
+import { groundHeightAt } from '../../utils/terrain-height.ts'
 import { useSteering } from '../../hooks/useSteering.ts'
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts'
 import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
-import { findNearest, findRandomAmongNearest, findNearestRiverPoint, entitiesInRadius } from '../../state/ecosystem-selectors.ts'
+import { findNearest, findRandomAmongNearest, findNearestWaterPoint, entitiesInRadius } from '../../state/ecosystem-selectors.ts'
 import { Billboard } from '@react-three/drei'
 import StatusBar from './StatusBar.tsx'
 import IntentionOverlay from './IntentionOverlay.tsx'
@@ -153,9 +154,10 @@ export default function Rabbit({ data }: RabbitProps) {
       }
 
       // River depth for position
-      const depth = riverDepthAt(pos.x, pos.z)
+      const terrainY = groundHeightAt(pos.x, pos.z)
+      const depth = waterDepthAt(pos.x, pos.z)
       const sinkY = depth > 0 ? -depth * 0.85 : 0
-      groupRef.current.position.set(pos.x, sinkY, pos.z)
+      groupRef.current.position.set(pos.x, terrainY + sinkY, pos.z)
 
       // Still sync position
       syncTimer.current += delta
@@ -197,9 +199,10 @@ export default function Rabbit({ data }: RabbitProps) {
       if (thirstRef.current >= 1 || drinkingTimerRef.current <= 0) {
         drinkingTimerRef.current = 0
       }
-      const depth = riverDepthAt(pos.x, pos.z)
+      const terrainY = groundHeightAt(pos.x, pos.z)
+      const depth = waterDepthAt(pos.x, pos.z)
       const sinkY = depth > 0 ? -depth * 0.85 : 0
-      groupRef.current.position.set(pos.x, sinkY, pos.z)
+      groupRef.current.position.set(pos.x, terrainY + sinkY, pos.z)
       syncTimer.current += delta
       if (syncTimer.current > 0.5) {
         syncTimer.current = 0
@@ -256,9 +259,10 @@ export default function Rabbit({ data }: RabbitProps) {
           eatingFlowerIdRef.current = null
         }
       }
-      const depth = riverDepthAt(pos.x, pos.z)
+      const terrainY = groundHeightAt(pos.x, pos.z)
+      const depth = waterDepthAt(pos.x, pos.z)
       const sinkY = depth > 0 ? -depth * 0.85 : 0
-      groupRef.current.position.set(pos.x, sinkY, pos.z)
+      groupRef.current.position.set(pos.x, terrainY + sinkY, pos.z)
       syncTimer.current += delta
       if (syncTimer.current > 0.5) {
         syncTimer.current = 0
@@ -303,7 +307,7 @@ export default function Rabbit({ data }: RabbitProps) {
 
     // ── 2. SEEK WATER: thirsty ──
     } else if (thirstRef.current < NEED_THRESHOLD) {
-      const riverPt = findNearestRiverPoint([pos.x, pos.y, pos.z])
+      const riverPt = findNearestWaterPoint([pos.x, pos.y, pos.z])
       tempTarget.set(...riverPt)
       tempForce.add(seek(pos, vel, tempTarget))
       intentionRef.current = 'Seeking water'
@@ -535,11 +539,12 @@ export default function Rabbit({ data }: RabbitProps) {
     const hopY = Math.abs(Math.sin(jumpPhase.current)) * JUMP_HEIGHT * speedFactor
 
     // River depth: sink to riverbed when walking in the river
-    const depth = riverDepthAt(pos.x, pos.z)
+    const terrainY = groundHeightAt(pos.x, pos.z)
+    const depth = waterDepthAt(pos.x, pos.z)
     const sinkY = depth > 0 ? -depth * 0.85 : 0 // sink most of the way down
 
     // Apply to mesh
-    groupRef.current.position.set(pos.x, hopY + sinkY, pos.z)
+    groupRef.current.position.set(pos.x, terrainY + hopY + sinkY, pos.z)
 
     if (speed > 0.1) {
       groupRef.current.rotation.y = Math.atan2(vel.x, vel.z)
@@ -564,7 +569,14 @@ export default function Rabbit({ data }: RabbitProps) {
 
   return (
     <>
-      <group ref={groupRef} position={[...data.position]}>
+      <group
+        ref={groupRef}
+        position={[
+          data.position[0],
+          groundHeightAt(data.position[0], data.position[2]) + data.position[1],
+          data.position[2],
+        ]}
+      >
         <group scale={visualScale}>
           {/* Body */}
           <mesh castShadow>

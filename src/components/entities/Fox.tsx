@@ -14,11 +14,12 @@ import {
   getSightMultiplier,
 } from '../../types/ecosystem.ts'
 import { ALL_OBSTACLES } from '../../data/obstacles.ts'
-import { riverDepthAt } from '../../utils/river-path.ts'
+import { waterDepthAt } from '../../utils/river-path.ts'
+import { groundHeightAt } from '../../utils/terrain-height.ts'
 import { useSteering } from '../../hooks/useSteering.ts'
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts'
 import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
-import { findNearest, findNearestRiverPoint, entitiesInRadius } from '../../state/ecosystem-selectors.ts'
+import { findNearest, findNearestWaterPoint, entitiesInRadius } from '../../state/ecosystem-selectors.ts'
 import StatusBar from './StatusBar.tsx'
 import IntentionOverlay from './IntentionOverlay.tsx'
 import { useDebug } from '../../state/debug-context.tsx'
@@ -28,6 +29,8 @@ interface FoxProps {
 }
 
 const MATING_PAUSE_DURATION = 2.5
+const FOX_HUNGER_RATE = 0.0018
+const FOX_THIRST_RATE = 0.02
 
 export default function Fox({ data }: FoxProps) {
   const groupRef = useRef<Group>(null!)
@@ -67,7 +70,8 @@ export default function Fox({ data }: FoxProps) {
     entityType: 'fox',
     hunger: data.hunger,
     thirst: data.thirst,
-    hungerRate: 0.003,
+    hungerRate: FOX_HUNGER_RATE,
+    thirstRate: FOX_THIRST_RATE,
   })
 
   const tempForce = useMemo(() => new Vector3(), [])
@@ -98,7 +102,10 @@ export default function Fox({ data }: FoxProps) {
       vel.set(0, 0, 0)
       intentionRef.current = 'Mating'
       intentionTargetRef.current = null
-      groupRef.current.position.set(pos.x, 0.5, pos.z)
+      const terrainY = groundHeightAt(pos.x, pos.z)
+      const depth = waterDepthAt(pos.x, pos.z)
+      const sinkY = depth > 0 ? -depth * 0.85 : 0
+      groupRef.current.position.set(pos.x, terrainY + 0.5 + sinkY, pos.z)
       syncTimer.current += delta
       if (syncTimer.current > 0.5) {
         syncTimer.current = 0
@@ -131,7 +138,10 @@ export default function Fox({ data }: FoxProps) {
 
         // Catch rabbit (larger catch radius = pounce)
         if (pos.distanceTo(tempTarget) < 1.0) {
-          spawnBlood(pos.x, 0.5, pos.z)
+          const terrainY = groundHeightAt(pos.x, pos.z)
+          const depth = waterDepthAt(pos.x, pos.z)
+          const sinkY = depth > 0 ? -depth * 0.85 : 0
+          spawnBlood(pos.x, terrainY + 0.5 + sinkY, pos.z)
           dispatch({ type: 'REMOVE_RABBIT', id: nearest.id })
           const mealValue = 0.5
           hungerRef.current = Math.min(1, hungerRef.current + mealValue)
@@ -200,7 +210,7 @@ export default function Fox({ data }: FoxProps) {
 
     // ── 2. SEEK WATER: thirsty ──
     } else if (thirstRef.current < NEED_THRESHOLD) {
-      const riverPt = findNearestRiverPoint([pos.x, pos.y, pos.z])
+      const riverPt = findNearestWaterPoint([pos.x, pos.y, pos.z])
       tempTarget.set(...riverPt)
       tempForce.add(seek(pos, vel, tempTarget))
       intentionRef.current = 'Seeking water'
@@ -291,11 +301,12 @@ export default function Fox({ data }: FoxProps) {
     }
 
     // River depth: sink to riverbed when walking in the river
-    const depth = riverDepthAt(pos.x, pos.z)
+    const terrainY = groundHeightAt(pos.x, pos.z)
+    const depth = waterDepthAt(pos.x, pos.z)
     const sinkY = depth > 0 ? -depth * 0.85 : 0
 
     // Apply to mesh
-    groupRef.current.position.set(pos.x, 0.5 + sinkY, pos.z)
+    groupRef.current.position.set(pos.x, terrainY + 0.5 + sinkY, pos.z)
 
     const speed = vel.length()
     if (speed > 0.1) {
@@ -322,7 +333,14 @@ export default function Fox({ data }: FoxProps) {
 
   return (
     <>
-    <group ref={groupRef} position={[...data.position]}>
+    <group
+      ref={groupRef}
+      position={[
+        data.position[0],
+        groundHeightAt(data.position[0], data.position[2]) + data.position[1],
+        data.position[2],
+      ]}
+    >
       <group scale={data.isAdult ? [1.6, 1.6, 1.6] : [1.0, 1.0, 1.0]}>
         {/* Body */}
         <mesh castShadow>

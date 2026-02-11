@@ -5,8 +5,7 @@ import type { DirectionalLight, AmbientLight } from 'three'
 import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
 import {
   DAY_DURATION,
-  WEATHER_CHANGE_INTERVAL,
-  RAIN_CHANCE,
+  WORLD_SIZE,
 } from '../../types/ecosystem.ts'
 
 // Color palettes for different times of day
@@ -49,28 +48,28 @@ function lerpColor(a: Color, b: Color, t: number, out: Color): Color {
 
 // Get sky color based on time of day (0-1)
 function getSkyColor(t: number, out: Color): Color {
-  if (t < 0.1) {
+  if (t < 0.08) {
     // night -> dawn
-    return lerpColor(SKY_COLORS.night, SKY_COLORS.dawn, t / 0.1, out)
-  } else if (t < 0.2) {
+    return lerpColor(SKY_COLORS.night, SKY_COLORS.dawn, t / 0.08, out)
+  } else if (t < 0.14) {
     // dawn -> morning
-    return lerpColor(SKY_COLORS.dawn, SKY_COLORS.morning, (t - 0.1) / 0.1, out)
-  } else if (t < 0.3) {
+    return lerpColor(SKY_COLORS.dawn, SKY_COLORS.morning, (t - 0.08) / 0.06, out)
+  } else if (t < 0.22) {
     // morning -> noon
-    return lerpColor(SKY_COLORS.morning, SKY_COLORS.noon, (t - 0.2) / 0.1, out)
-  } else if (t < 0.45) {
+    return lerpColor(SKY_COLORS.morning, SKY_COLORS.noon, (t - 0.14) / 0.08, out)
+  } else if (t < 0.5) {
     // noon
     out.copy(SKY_COLORS.noon)
     return out
-  } else if (t < 0.55) {
+  } else if (t < 0.62) {
     // noon -> afternoon
-    return lerpColor(SKY_COLORS.noon, SKY_COLORS.afternoon, (t - 0.45) / 0.1, out)
-  } else if (t < 0.65) {
+    return lerpColor(SKY_COLORS.noon, SKY_COLORS.afternoon, (t - 0.5) / 0.12, out)
+  } else if (t < 0.72) {
     // afternoon -> dusk
-    return lerpColor(SKY_COLORS.afternoon, SKY_COLORS.dusk, (t - 0.55) / 0.1, out)
-  } else if (t < 0.75) {
+    return lerpColor(SKY_COLORS.afternoon, SKY_COLORS.dusk, (t - 0.62) / 0.1, out)
+  } else if (t < 0.82) {
     // dusk -> night
-    return lerpColor(SKY_COLORS.dusk, SKY_COLORS.night, (t - 0.65) / 0.1, out)
+    return lerpColor(SKY_COLORS.dusk, SKY_COLORS.night, (t - 0.72) / 0.1, out)
   } else {
     // night
     out.copy(SKY_COLORS.night)
@@ -79,17 +78,17 @@ function getSkyColor(t: number, out: Color): Color {
 }
 
 function getFogColor(t: number, out: Color): Color {
-  if (t < 0.15) {
-    return lerpColor(FOG_COLORS.night, FOG_COLORS.dawn, t / 0.15, out)
-  } else if (t < 0.25) {
-    return lerpColor(FOG_COLORS.dawn, FOG_COLORS.day, (t - 0.15) / 0.1, out)
-  } else if (t < 0.55) {
+  if (t < 0.1) {
+    return lerpColor(FOG_COLORS.night, FOG_COLORS.dawn, t / 0.1, out)
+  } else if (t < 0.2) {
+    return lerpColor(FOG_COLORS.dawn, FOG_COLORS.day, (t - 0.1) / 0.1, out)
+  } else if (t < 0.62) {
     out.copy(FOG_COLORS.day)
     return out
-  } else if (t < 0.65) {
-    return lerpColor(FOG_COLORS.day, FOG_COLORS.dusk, (t - 0.55) / 0.1, out)
-  } else if (t < 0.75) {
-    return lerpColor(FOG_COLORS.dusk, FOG_COLORS.night, (t - 0.65) / 0.1, out)
+  } else if (t < 0.72) {
+    return lerpColor(FOG_COLORS.day, FOG_COLORS.dusk, (t - 0.62) / 0.1, out)
+  } else if (t < 0.82) {
+    return lerpColor(FOG_COLORS.dusk, FOG_COLORS.night, (t - 0.72) / 0.1, out)
   } else {
     out.copy(FOG_COLORS.night)
     return out
@@ -97,17 +96,17 @@ function getFogColor(t: number, out: Color): Color {
 }
 
 function getAmbientColor(t: number, out: Color): Color {
-  if (t < 0.15) {
-    return lerpColor(AMBIENT_COLORS.night, AMBIENT_COLORS.dawn, t / 0.15, out)
-  } else if (t < 0.25) {
-    return lerpColor(AMBIENT_COLORS.dawn, AMBIENT_COLORS.day, (t - 0.15) / 0.1, out)
-  } else if (t < 0.55) {
+  if (t < 0.1) {
+    return lerpColor(AMBIENT_COLORS.night, AMBIENT_COLORS.dawn, t / 0.1, out)
+  } else if (t < 0.2) {
+    return lerpColor(AMBIENT_COLORS.dawn, AMBIENT_COLORS.day, (t - 0.1) / 0.1, out)
+  } else if (t < 0.62) {
     out.copy(AMBIENT_COLORS.day)
     return out
-  } else if (t < 0.65) {
-    return lerpColor(AMBIENT_COLORS.day, AMBIENT_COLORS.dusk, (t - 0.55) / 0.1, out)
-  } else if (t < 0.75) {
-    return lerpColor(AMBIENT_COLORS.dusk, AMBIENT_COLORS.night, (t - 0.65) / 0.1, out)
+  } else if (t < 0.72) {
+    return lerpColor(AMBIENT_COLORS.day, AMBIENT_COLORS.dusk, (t - 0.62) / 0.1, out)
+  } else if (t < 0.82) {
+    return lerpColor(AMBIENT_COLORS.dusk, AMBIENT_COLORS.night, (t - 0.72) / 0.1, out)
   } else {
     out.copy(AMBIENT_COLORS.night)
     return out
@@ -115,17 +114,17 @@ function getAmbientColor(t: number, out: Color): Color {
 }
 
 function getSunColor(t: number, out: Color): Color {
-  if (t < 0.15) {
-    return lerpColor(SUN_COLORS.night, SUN_COLORS.dawn, t / 0.15, out)
-  } else if (t < 0.25) {
-    return lerpColor(SUN_COLORS.dawn, SUN_COLORS.day, (t - 0.15) / 0.1, out)
-  } else if (t < 0.55) {
+  if (t < 0.1) {
+    return lerpColor(SUN_COLORS.night, SUN_COLORS.dawn, t / 0.1, out)
+  } else if (t < 0.2) {
+    return lerpColor(SUN_COLORS.dawn, SUN_COLORS.day, (t - 0.1) / 0.1, out)
+  } else if (t < 0.62) {
     out.copy(SUN_COLORS.day)
     return out
-  } else if (t < 0.65) {
-    return lerpColor(SUN_COLORS.day, SUN_COLORS.dusk, (t - 0.55) / 0.1, out)
-  } else if (t < 0.75) {
-    return lerpColor(SUN_COLORS.dusk, SUN_COLORS.night, (t - 0.65) / 0.1, out)
+  } else if (t < 0.72) {
+    return lerpColor(SUN_COLORS.day, SUN_COLORS.dusk, (t - 0.62) / 0.1, out)
+  } else if (t < 0.82) {
+    return lerpColor(SUN_COLORS.dusk, SUN_COLORS.night, (t - 0.72) / 0.1, out)
   } else {
     out.copy(SUN_COLORS.night)
     return out
@@ -133,23 +132,23 @@ function getSunColor(t: number, out: Color): Color {
 }
 
 function getAmbientIntensity(t: number): number {
-  // Night: 0.08, Dawn/Dusk: 0.3, Day: 0.5
-  if (t < 0.1) return 0.08 + (t / 0.1) * 0.22
-  if (t < 0.25) return 0.3 + ((t - 0.1) / 0.15) * 0.2
-  if (t < 0.55) return 0.5
-  if (t < 0.65) return 0.5 - ((t - 0.55) / 0.1) * 0.2
-  if (t < 0.75) return 0.3 - ((t - 0.65) / 0.1) * 0.22
-  return 0.08
+  // Night: 0.24, Dawn/Dusk: 0.5, Day: 0.74
+  if (t < 0.08) return 0.24 + (t / 0.08) * 0.26
+  if (t < 0.16) return 0.5 + ((t - 0.08) / 0.08) * 0.24
+  if (t < 0.62) return 0.74
+  if (t < 0.72) return 0.74 - ((t - 0.62) / 0.1) * 0.24
+  if (t < 0.82) return 0.5 - ((t - 0.72) / 0.1) * 0.26
+  return 0.24
 }
 
 function getSunIntensity(t: number): number {
-  // Night: 0.0, Dawn/Dusk: 0.5, Day: 1.2
-  if (t < 0.1) return (t / 0.1) * 0.5
-  if (t < 0.25) return 0.5 + ((t - 0.1) / 0.15) * 0.7
-  if (t < 0.55) return 1.2
-  if (t < 0.65) return 1.2 - ((t - 0.55) / 0.1) * 0.7
-  if (t < 0.75) return 0.5 - ((t - 0.65) / 0.1) * 0.5
-  return 0
+  // Night: 0.18, Dawn/Dusk: 0.95, Day: 1.55
+  if (t < 0.08) return 0.18 + (t / 0.08) * 0.77
+  if (t < 0.16) return 0.95 + ((t - 0.08) / 0.08) * 0.6
+  if (t < 0.62) return 1.55
+  if (t < 0.72) return 1.55 - ((t - 0.62) / 0.1) * 0.6
+  if (t < 0.82) return 0.95 - ((t - 0.72) / 0.1) * 0.77
+  return 0.18
 }
 
 export default function WeatherSystem() {
@@ -177,25 +176,13 @@ export default function WeatherSystem() {
 
     const t = newTimeOfDay
 
-    // Weather auto-change
-    if (state.time >= state.weather.nextChangeAt) {
-      const isRaining = Math.random() < RAIN_CHANCE
-      dispatch({
-        type: 'SET_WEATHER',
-        weather: isRaining ? 'rainy' : 'sunny',
-        intensity: isRaining ? 0.4 + Math.random() * 0.6 : 0,
-        nextChangeAt: state.time + WEATHER_CHANGE_INTERVAL,
-      })
-    }
-
-    const isRainy = state.weather.type === 'rainy'
-    const rainDim = isRainy ? 0.6 : 1.0 // dim lights during rain
+    const rainDim = 1.0
 
     // Sun position - realistic east-to-west arc
-    // t=0.15 sunrise (east), t=0.375 noon (top), t=0.65 sunset (west)
+    // t=0.08 sunrise (east), t~0.35 noon (top), t=0.72 sunset (west)
     // Map daytime portion to a 0-PI arc, nighttime sun goes below horizon
-    const dayStart = 0.1
-    const dayEnd = 0.7
+    const dayStart = 0.08
+    const dayEnd = 0.72
     const isDay = t >= dayStart && t <= dayEnd
     if (isDay) {
       const dayProgress = (t - dayStart) / (dayEnd - dayStart) // 0→1 across daytime
@@ -220,29 +207,22 @@ export default function WeatherSystem() {
     sunRef.current.color.copy(tempColor)
 
     // Ambient
-    ambientRef.current.intensity = getAmbientIntensity(t) * (isRainy ? 0.8 : 1.0)
+    ambientRef.current.intensity = getAmbientIntensity(t)
     getAmbientColor(t, tempColor)
     ambientRef.current.color.copy(tempColor)
 
     // Sky color
     getSkyColor(t, tempColor)
-    if (isRainy) {
-      // Darken and desaturate sky during rain
-      tempColor.lerp(new Color('#4a5568'), state.weather.intensity * 0.5)
-    }
     scene.background = tempColor.clone()
 
     // Fog
     getFogColor(t, tempColor)
-    if (isRainy) {
-      tempColor.lerp(new Color('#667788'), state.weather.intensity * 0.4)
-    }
     if (scene.fog && 'color' in scene.fog) {
       (scene.fog as any).color.copy(tempColor)
-      // Tighter fog at night and during rain
-      const isNight = t > 0.7 || t < 0.1
-      ;(scene.fog as any).near = isRainy ? 30 : isNight ? 40 : 60
-      ;(scene.fog as any).far = isRainy ? 80 : isNight ? 90 : 130
+      // Keep fog subtle so far-away terrain remains visible.
+      const isNight = t > 0.72 || t < 0.08
+      ;(scene.fog as any).near = isNight ? WORLD_SIZE * 1.2 : WORLD_SIZE * 1.6
+      ;(scene.fog as any).far = isNight ? WORLD_SIZE * 3.2 : WORLD_SIZE * 4.2
     }
   })
 
@@ -262,7 +242,7 @@ export default function WeatherSystem() {
         shadow-camera-top={60}
         shadow-camera-bottom={-60}
       />
-      <fog attach="fog" args={['#a8d5e2', 60, 130]} />
+      <fog attach="fog" args={['#a8d5e2', WORLD_SIZE * 1.6, WORLD_SIZE * 4.2]} />
     </>
   )
 }

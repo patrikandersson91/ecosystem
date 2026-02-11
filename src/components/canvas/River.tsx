@@ -1,13 +1,14 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { riverCenterZ, RIVER_WIDTH, RIVER_MAX_DEPTH } from '../../utils/river-path'
+import { riverCenterZ, RIVER_HALF_LENGTH, RIVER_WIDTH, RIVER_MAX_DEPTH } from '../../utils/river-path'
+import { WORLD_SCALE } from '../../types/ecosystem.ts'
 
-const SEGMENTS_X = 128
+const SEGMENTS_X = Math.max(128, Math.floor(128 * WORLD_SCALE))
 const SEGMENTS_Z = 16
-const RIVER_LENGTH = 110
+const RIVER_LENGTH = RIVER_HALF_LENGTH * 2
 
-const PARTICLE_COUNT = 1200
+const PARTICLE_COUNT = Math.floor(1200 * WORLD_SCALE)
 
 // ─── Riverbed shaders ─────────────────────────────────────────
 const riverbedVert = /* glsl */ `

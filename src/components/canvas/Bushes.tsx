@@ -1,4 +1,5 @@
 import { BUSH_POSITIONS } from '../../data/obstacles.ts'
+import { groundHeightAt } from '../../utils/terrain-height.ts'
 
 export default function Bushes() {
   return (
@@ -8,7 +9,11 @@ export default function Bushes() {
         const scale = 0.8 + (((i * 7) % 13) / 13) * 0.5
         const rotation = ((i * 137.5) % 360) * (Math.PI / 180)
         return (
-          <group key={i} position={[pos[0], 0, pos[2]]} rotation={[0, rotation, 0]}>
+          <group
+            key={i}
+            position={[pos[0], groundHeightAt(pos[0], pos[2]), pos[2]]}
+            rotation={[0, rotation, 0]}
+          >
             {/* Main bush sphere */}
             <mesh position={[0, 0.35 * scale, 0]} castShadow receiveShadow>
               <sphereGeometry args={[0.55 * scale, 7, 6]} />

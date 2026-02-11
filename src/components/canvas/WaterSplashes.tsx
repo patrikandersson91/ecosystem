@@ -2,7 +2,7 @@ import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useEcosystem } from '../../state/ecosystem-context.tsx'
-import { isInRiver, riverDepthAt } from '../../utils/river-path.ts'
+import { isInWater } from '../../utils/river-path.ts'
 
 /** Max entities we track at once */
 const MAX_TRACKED = 20
@@ -210,16 +210,23 @@ export default function WaterSplashes() {
 
     for (const r of state.rabbits) {
       if (!r.alive) continue
-      if (isInRiver(r.position[0], r.position[2])) {
+      if (isInWater(r.position[0], r.position[2])) {
         const spd = Math.sqrt(r.velocity[0] ** 2 + r.velocity[2] ** 2)
         inWater.push({ id: r.id, x: r.position[0], z: r.position[2], speed: spd })
       }
     }
     for (const f of state.foxes) {
       if (!f.alive) continue
-      if (isInRiver(f.position[0], f.position[2])) {
+      if (isInWater(f.position[0], f.position[2])) {
         const spd = Math.sqrt(f.velocity[0] ** 2 + f.velocity[2] ** 2)
         inWater.push({ id: f.id, x: f.position[0], z: f.position[2], speed: spd })
+      }
+    }
+    for (const m of state.moose) {
+      if (!m.alive) continue
+      if (isInWater(m.position[0], m.position[2])) {
+        const spd = Math.sqrt(m.velocity[0] ** 2 + m.velocity[2] ** 2)
+        inWater.push({ id: m.id, x: m.position[0], z: m.position[2], speed: spd })
       }
     }
 

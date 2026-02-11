@@ -6,9 +6,11 @@ export interface LogSnapshot {
   time: number
   rabbits: number
   foxes: number
+  moose: number
   flowers: number
   avgRabbitHunger: number
   avgFoxHunger: number
+  avgMooseHunger: number
   births: number    // since last snapshot
   starved: number   // since last snapshot
   eaten: number     // rabbits eaten by foxes since last snapshot
@@ -16,7 +18,7 @@ export interface LogSnapshot {
 
 export interface LogEvent {
   time: number
-  type: 'birth' | 'starve_rabbit' | 'starve_fox' | 'eaten' | 'mate' | 'game_over'
+  type: 'birth' | 'starve_rabbit' | 'starve_fox' | 'starve_moose' | 'eaten' | 'mate' | 'game_over'
   detail: string
 }
 
@@ -58,7 +60,7 @@ export function SimulationLogProvider({ children }: { children: ReactNode }) {
   const recordEvent = useCallback((event: LogEvent) => {
     setEvents(prev => [...prev, event])
     if (event.type === 'birth') counters.current.births++
-    if (event.type === 'starve_rabbit' || event.type === 'starve_fox') counters.current.starved++
+    if (event.type === 'starve_rabbit' || event.type === 'starve_fox' || event.type === 'starve_moose') counters.current.starved++
     if (event.type === 'eaten') counters.current.eaten++
   }, [])
 
@@ -72,14 +74,19 @@ export function SimulationLogProvider({ children }: { children: ReactNode }) {
     const avgFoxHunger = state.foxes.length > 0
       ? state.foxes.reduce((sum, f) => sum + f.hunger, 0) / state.foxes.length
       : 0
+    const avgMooseHunger = state.moose.length > 0
+      ? state.moose.reduce((sum, m) => sum + m.hunger, 0) / state.moose.length
+      : 0
 
     const snap: LogSnapshot = {
       time: Math.floor(state.time),
       rabbits: state.rabbits.length,
       foxes: state.foxes.length,
+      moose: state.moose.length,
       flowers: state.flowers.filter(f => f.alive).length,
       avgRabbitHunger: Math.round(avgRabbitHunger * 100) / 100,
       avgFoxHunger: Math.round(avgFoxHunger * 100) / 100,
+      avgMooseHunger: Math.round(avgMooseHunger * 100) / 100,
       births: counters.current.births,
       starved: counters.current.starved,
       eaten: counters.current.eaten,
@@ -97,21 +104,23 @@ export function SimulationLogProvider({ children }: { children: ReactNode }) {
     if (snapshots.length > 0) {
       const last = snapshots[snapshots.length - 1]
       lines.push(`Duration: ${Math.floor(last.time / 60)}m ${last.time % 60}s`)
-      lines.push(`Final: ${last.rabbits} rabbits, ${last.foxes} foxes, ${last.flowers} flowers`)
+      lines.push(`Final: ${last.rabbits} rabbits, ${last.foxes} foxes, ${last.moose} moose, ${last.flowers} flowers`)
       lines.push('')
     }
 
     // Snapshot table
-    lines.push('TIME  | RABBITS | FOXES | FLOWERS | AVG R.HUNGER | AVG F.HUNGER | BIRTHS | STARVED | EATEN')
-    lines.push('------|---------|-------|---------|--------------|--------------|--------|---------|------')
+    lines.push('TIME  | RABBITS | FOXES | MOOSE | FLOWERS | AVG R.HUNGER | AVG F.HUNGER | AVG M.HUNGER | BIRTHS | STARVED | EATEN')
+    lines.push('------|---------|-------|-------|---------|--------------|--------------|--------------|--------|---------|------')
     for (const s of snapshots) {
       lines.push(
         `${String(s.time).padStart(5)}` +
         ` | ${String(s.rabbits).padStart(7)}` +
         ` | ${String(s.foxes).padStart(5)}` +
+        ` | ${String(s.moose).padStart(5)}` +
         ` | ${String(s.flowers).padStart(7)}` +
         ` | ${s.avgRabbitHunger.toFixed(2).padStart(12)}` +
         ` | ${s.avgFoxHunger.toFixed(2).padStart(12)}` +
+        ` | ${s.avgMooseHunger.toFixed(2).padStart(12)}` +
         ` | ${String(s.births).padStart(6)}` +
         ` | ${String(s.starved).padStart(7)}` +
         ` | ${String(s.eaten).padStart(5)}`

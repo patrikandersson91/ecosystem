@@ -1,10 +1,25 @@
-import { TREE_POSITIONS } from '../../data/obstacles.ts'
+import {
+  CORNER_FOREST_TREE_POSITIONS,
+  DENSE_FOREST_TREE_POSITIONS,
+  FOREST_EDGE_TREE_POSITIONS,
+  TREE_POSITIONS,
+} from '../../data/obstacles.ts'
+import { groundHeightAt } from '../../utils/terrain-height.ts'
+import { isInWater } from '../../utils/river-path.ts'
 
 export default function Trees() {
+  const TREE_WATER_CLEARANCE = 3
+  const allTrees = [
+    ...TREE_POSITIONS,
+    ...DENSE_FOREST_TREE_POSITIONS,
+    ...FOREST_EDGE_TREE_POSITIONS,
+    ...CORNER_FOREST_TREE_POSITIONS,
+  ].filter(pos => !isInWater(pos[0], pos[2], TREE_WATER_CLEARANCE))
+
   return (
     <group>
-      {TREE_POSITIONS.map((pos, i) => (
-        <group key={i} position={[pos[0], 0, pos[2]]}>
+      {allTrees.map((pos, i) => (
+        <group key={i} position={[pos[0], groundHeightAt(pos[0], pos[2]), pos[2]]}>
           {/* Trunk */}
           <mesh position={[0, 1, 0]} castShadow receiveShadow>
             <cylinderGeometry args={[0.15, 0.25, 2, 6]} />

@@ -35,6 +35,7 @@ export default function PopulationGraph({ snapshots }: PopulationGraphProps) {
     const allSeries: Series[] = [
       { label: 'Rabbits', color: '#fbbf24', values: snapshots.map(s => s.rabbits), latest: snapshots[snapshots.length - 1].rabbits },
       { label: 'Foxes', color: '#fb923c', values: snapshots.map(s => s.foxes), latest: snapshots[snapshots.length - 1].foxes },
+      { label: 'Moose', color: '#fde68a', values: snapshots.map(s => s.moose), latest: snapshots[snapshots.length - 1].moose },
       { label: 'Flowers', color: '#f9a8d4', values: snapshots.map(s => s.flowers), latest: snapshots[snapshots.length - 1].flowers },
     ]
 

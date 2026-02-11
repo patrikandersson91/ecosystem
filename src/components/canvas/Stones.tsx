@@ -1,4 +1,5 @@
 import { STONE_POSITIONS } from '../../data/obstacles.ts'
+import { groundHeightAt } from '../../utils/terrain-height.ts'
 
 export default function Stones() {
   return (
@@ -9,7 +10,11 @@ export default function Stones() {
         // Alternate between grey shades
         const color = i % 3 === 0 ? '#8a8a8a' : i % 3 === 1 ? '#6e6e6e' : '#9c9590'
         return (
-          <group key={i} position={[pos[0], 0, pos[2]]} rotation={[0, rotation, 0]}>
+          <group
+            key={i}
+            position={[pos[0], groundHeightAt(pos[0], pos[2]), pos[2]]}
+            rotation={[0, rotation, 0]}
+          >
             {/* Main stone body */}
             <mesh
               position={[0, 0.18 * scale, 0]}

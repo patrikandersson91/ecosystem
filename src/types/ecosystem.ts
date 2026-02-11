@@ -1,10 +1,12 @@
 import type { Vector3Tuple } from 'three';
 
 // ─── World Constants ────────────────────────────────────────
-export const WORLD_SIZE = 50;
+export const BASE_WORLD_SIZE = 50;
+export const WORLD_SIZE = BASE_WORLD_SIZE * 4;
+export const WORLD_SCALE = WORLD_SIZE / BASE_WORLD_SIZE;
 
 // ─── Weather & Time Constants ───────────────────────────────
-export const DAY_DURATION = 300; // seconds for a full day cycle
+export const DAY_DURATION = 600; // seconds for a full day cycle
 export const WEATHER_CHANGE_INTERVAL = 30; // seconds between possible weather changes
 export const RAIN_CHANCE = 0.35; // probability of rain each weather roll
 
@@ -13,6 +15,7 @@ export const FLEE_RADIUS = 11;
 export const AGGRO_RADIUS = 15;
 export const MAX_SPEED_RABBIT = 3.4;
 export const MAX_SPEED_FOX = 6.0;
+export const MAX_SPEED_MOOSE = 2.3;
 export const HUNGER_RATE = 0.02;
 export const THIRST_RATE = 0.03;
 export const NEED_THRESHOLD = 0.3;
@@ -30,10 +33,10 @@ export function getSightMultiplier(timeOfDay: number): number {
   const t = timeOfDay;
   const MIN = NIGHT_SIGHT_MULTIPLIER;
   const RANGE = 1 - MIN;
-  if (t < 0.1) return MIN; // night
-  if (t < 0.2) return MIN + ((t - 0.1) / 0.1) * RANGE; // dawn → day
-  if (t < 0.55) return 1.0; // day
-  if (t < 0.75) return 1.0 - ((t - 0.55) / 0.2) * RANGE; // dusk → night
+  if (t < 0.08) return MIN; // night
+  if (t < 0.16) return MIN + ((t - 0.08) / 0.08) * RANGE; // dawn → day
+  if (t < 0.62) return 1.0; // day
+  if (t < 0.82) return 1.0 - ((t - 0.62) / 0.2) * RANGE; // dusk → night
   return MIN; // night
 }
 
@@ -47,7 +50,7 @@ export interface WeatherState {
 }
 
 // ─── Types ──────────────────────────────────────────────────
-export type EntityType = 'rabbit' | 'fox';
+export type EntityType = 'rabbit' | 'fox' | 'moose';
 
 export type BehaviorState =
   | 'wandering'
@@ -89,6 +92,10 @@ export interface FoxState extends EntityState {
   isAdult: boolean;
 }
 
+export interface MooseState extends EntityState {
+  type: 'moose';
+}
+
 // ─── World Interfaces ───────────────────────────────────────
 export interface FlowerState {
   id: string;
@@ -99,12 +106,14 @@ export interface FlowerState {
 export interface SimulationConfig {
   initialRabbits: number;
   initialFoxes: number;
+  initialMoose: number;
   initialFlowers: number;
 }
 
 export interface EcosystemState {
   rabbits: RabbitState[];
   foxes: FoxState[];
+  moose: MooseState[];
   flowers: FlowerState[];
   time: number;
   paused: boolean;

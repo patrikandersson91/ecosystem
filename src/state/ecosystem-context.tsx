@@ -1,9 +1,9 @@
 import { createContext, useContext, useReducer, useCallback } from 'react'
 import type { ReactNode, Dispatch } from 'react'
-import type { EcosystemState, RabbitState, FoxState, FlowerState, SimulationConfig, WeatherState } from '../types/ecosystem.ts'
+import type { EcosystemState, RabbitState, FoxState, MooseState, FlowerState, SimulationConfig } from '../types/ecosystem.ts'
 import type { EcosystemAction } from './ecosystem-actions.ts'
-import { WORLD_SIZE, WEATHER_CHANGE_INTERVAL } from '../types/ecosystem.ts'
-import { isInRiver } from '../utils/river-path'
+import { WORLD_SIZE, WORLD_SCALE, WEATHER_CHANGE_INTERVAL } from '../types/ecosystem.ts'
+import { isInWater } from '../utils/river-path'
 import { useSimulationLog } from './simulation-log.tsx'
 import type { LogEvent } from './simulation-log.tsx'
 
@@ -20,7 +20,7 @@ function randomPosition(): [number, number, number] {
   do {
     x = (Math.random() - 0.5) * half * 2
     z = (Math.random() - 0.5) * half * 2
-  } while (isInRiver(x, z, 1))
+  } while (isInWater(x, z, 1))
   return [x, 0, z]
 }
 
@@ -30,7 +30,7 @@ export function randomFlowerPosition(): [number, number, number] {
   do {
     x = (Math.random() - 0.5) * half * 2
     z = (Math.random() - 0.5) * half * 2
-  } while (isInRiver(x, z, 0.5))
+  } while (isInWater(x, z, 0.5))
   return [x, 0, z]
 }
 
@@ -70,6 +70,19 @@ function generateFoxes(count: number): FoxState[] {
   }))
 }
 
+function generateMoose(count: number): MooseState[] {
+  return Array.from({ length: count }, () => ({
+    id: uid('moose'),
+    type: 'moose' as const,
+    position: randomPosition(),
+    velocity: [0, 0, 0] as [number, number, number],
+    hunger: 0.9,
+    thirst: 0.9,
+    behavior: 'wandering' as const,
+    alive: true,
+  }))
+}
+
 function generateFlowers(count: number): FlowerState[] {
   return Array.from({ length: count }, () => ({
     id: uid('flower'),
@@ -88,6 +101,7 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
         config: action.config,
         rabbits: generateRabbits(action.config.initialRabbits),
         foxes: generateFoxes(action.config.initialFoxes),
+        moose: generateMoose(action.config.initialMoose),
         flowers: generateFlowers(action.config.initialFlowers),
         time: 0,
         paused: false,
@@ -115,6 +129,12 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
     case 'REMOVE_FOX':
       return { ...state, foxes: state.foxes.filter(f => f.id !== action.id) }
 
+    case 'SPAWN_MOOSE':
+      return { ...state, moose: [...state.moose, action.moose] }
+
+    case 'REMOVE_MOOSE':
+      return { ...state, moose: state.moose.filter(m => m.id !== action.id) }
+
     case 'UPDATE_ENTITY_POSITION':
       if (action.entityType === 'rabbit') {
         return {
@@ -126,9 +146,17 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
       }
       return {
         ...state,
-        foxes: state.foxes.map(f =>
-          f.id === action.id ? { ...f, position: action.position, velocity: action.velocity } : f,
-        ),
+        ...(action.entityType === 'fox'
+          ? {
+              foxes: state.foxes.map(f =>
+                f.id === action.id ? { ...f, position: action.position, velocity: action.velocity } : f,
+              ),
+            }
+          : {
+              moose: state.moose.map(m =>
+                m.id === action.id ? { ...m, position: action.position, velocity: action.velocity } : m,
+              ),
+            }),
       }
 
     case 'UPDATE_ENTITY_NEEDS':
@@ -142,9 +170,17 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
       }
       return {
         ...state,
-        foxes: state.foxes.map(f =>
-          f.id === action.id ? { ...f, hunger: action.hunger, thirst: action.thirst } : f,
-        ),
+        ...(action.entityType === 'fox'
+          ? {
+              foxes: state.foxes.map(f =>
+                f.id === action.id ? { ...f, hunger: action.hunger, thirst: action.thirst } : f,
+              ),
+            }
+          : {
+              moose: state.moose.map(m =>
+                m.id === action.id ? { ...m, hunger: action.hunger, thirst: action.thirst } : m,
+              ),
+            }),
       }
 
     case 'UPDATE_ENTITY_BEHAVIOR':
@@ -158,9 +194,17 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
       }
       return {
         ...state,
-        foxes: state.foxes.map(f =>
-          f.id === action.id ? { ...f, behavior: action.behavior } : f,
-        ),
+        ...(action.entityType === 'fox'
+          ? {
+              foxes: state.foxes.map(f =>
+                f.id === action.id ? { ...f, behavior: action.behavior } : f,
+              ),
+            }
+          : {
+              moose: state.moose.map(m =>
+                m.id === action.id ? { ...m, behavior: action.behavior } : m,
+              ),
+            }),
       }
 
     case 'EAT_FLOWER': {
@@ -179,6 +223,11 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
             mealsEaten: newMeals,
           }
         }),
+        moose: state.moose.map(m =>
+          m.id === action.entityId
+            ? { ...m, hunger: Math.min(1, m.hunger + 0.35), behavior: 'eating' as const }
+            : m,
+        ),
       }
     }
 
@@ -190,6 +239,16 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
             r.id === action.entityId
               ? { ...r, thirst: Math.min(1, r.thirst + 0.4), behavior: 'drinking' as const }
               : r,
+          ),
+        }
+      }
+      if (action.entityType === 'moose') {
+        return {
+          ...state,
+          moose: state.moose.map(m =>
+            m.id === action.entityId
+              ? { ...m, thirst: Math.min(1, m.thirst + 0.4), behavior: 'drinking' as const }
+              : m,
           ),
         }
       }
@@ -205,6 +264,9 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
     case 'KILL_ENTITY':
       if (action.entityType === 'rabbit') {
         return { ...state, rabbits: state.rabbits.filter(r => r.id !== action.id) }
+      }
+      if (action.entityType === 'moose') {
+        return { ...state, moose: state.moose.filter(m => m.id !== action.id) }
       }
       return { ...state, foxes: state.foxes.filter(f => f.id !== action.id) }
 
@@ -280,14 +342,16 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
 // ─── Initial State ──────────────────────────────────────────
 
 const defaultConfig: SimulationConfig = {
-  initialRabbits: 25,
-  initialFoxes: 6,
-  initialFlowers: 90,
+  initialRabbits: 30,
+  initialFoxes: 8,
+  initialMoose: 3,
+  initialFlowers: Math.floor(90 * WORLD_SCALE),
 }
 
 const initialState: EcosystemState = {
   rabbits: [],
   foxes: [],
+  moose: [],
   flowers: [],
   time: 0,
   paused: false,
@@ -326,6 +390,8 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
       case 'KILL_ENTITY':
         if (action.entityType === 'rabbit') {
           event = { time: t, type: 'starve_rabbit', detail: 'Rabbit starved' }
+        } else if (action.entityType === 'moose') {
+          event = { time: t, type: 'starve_moose', detail: 'Moose starved' }
         } else {
           event = { time: t, type: 'starve_fox', detail: 'Fox starved' }
         }

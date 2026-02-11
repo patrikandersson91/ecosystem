@@ -1,5 +1,5 @@
 import type { Vector3Tuple } from 'three'
-import { riverCenterZ, RIVER_WIDTH } from '../utils/river-path'
+import { clampRiverX, riverCenterZ, RIVER_WIDTH, WATER_PONDS, pondRadiusAtAngle } from '../utils/river-path'
 
 export function distanceBetween(a: Vector3Tuple, b: Vector3Tuple): number {
   const dx = a[0] - b[0]
@@ -23,12 +23,45 @@ export function findNearest<T extends { position: Vector3Tuple }>(
   return best
 }
 
-export function findNearestRiverPoint(pos: Vector3Tuple): Vector3Tuple {
+export function findNearestWaterPoint(pos: Vector3Tuple): Vector3Tuple {
   const [px, , pz] = pos
-  const center = riverCenterZ(px)
+
+  // Candidate 1: nearest point on river strip.
+  const riverX = clampRiverX(px)
+  const center = riverCenterZ(riverX)
   const halfW = RIVER_WIDTH / 2
   const clampedZ = Math.max(center - halfW, Math.min(center + halfW, pz))
-  return [px, 0, clampedZ]
+  let best: Vector3Tuple = [riverX, 0, clampedZ]
+  let bestDist = distanceBetween(pos, best)
+
+  // Candidate 2+: nearest point on each pond edge/inside area.
+  for (const pond of WATER_PONDS) {
+    const dx = px - pond.center[0]
+    const dz = pz - pond.center[1]
+    const dist = Math.sqrt(dx * dx + dz * dz)
+    const angle = Math.atan2(dz, dx)
+    const edgeRadius = pondRadiusAtAngle(pond, angle)
+
+    let candidate: Vector3Tuple
+    if (dist <= edgeRadius) {
+      candidate = [px, 0, pz]
+    } else if (dist < 1e-6) {
+      const r = pondRadiusAtAngle(pond, 0)
+      candidate = [pond.center[0] + r, 0, pond.center[1]]
+    } else {
+      const ux = dx / dist
+      const uz = dz / dist
+      candidate = [pond.center[0] + ux * edgeRadius, 0, pond.center[1] + uz * edgeRadius]
+    }
+
+    const d = distanceBetween(pos, candidate)
+    if (d < bestDist) {
+      bestDist = d
+      best = candidate
+    }
+  }
+
+  return best
 }
 
 export function findRandomAmongNearest<T extends { position: Vector3Tuple }>(

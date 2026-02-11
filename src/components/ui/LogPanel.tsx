@@ -61,7 +61,7 @@ export default function LogPanel({ onClose }: LogPanelProps) {
                   const t = `${Math.floor(e.time / 60)}:${String(Math.floor(e.time % 60)).padStart(2, '0')}`
                   let color = 'text-white/60'
                   if (e.type === 'birth') color = 'text-green-400'
-                  if (e.type === 'eaten' || e.type === 'starve_rabbit' || e.type === 'starve_fox') color = 'text-red-400'
+                  if (e.type === 'eaten' || e.type === 'starve_rabbit' || e.type === 'starve_fox' || e.type === 'starve_moose') color = 'text-red-400'
                   if (e.type === 'mate') color = 'text-pink-400'
                   if (e.type === 'game_over') color = 'text-red-500 font-bold'
 
@@ -95,9 +95,11 @@ export default function LogPanel({ onClose }: LogPanelProps) {
                     <th className="pb-1 pr-3">Time</th>
                     <th className="pb-1 pr-3">Rab</th>
                     <th className="pb-1 pr-3">Fox</th>
+                    <th className="pb-1 pr-3">Mse</th>
                     <th className="pb-1 pr-3">Flwr</th>
                     <th className="pb-1 pr-3">R.Hgr</th>
                     <th className="pb-1 pr-3">F.Hgr</th>
+                    <th className="pb-1 pr-3">M.Hgr</th>
                     <th className="pb-1 pr-3">Born</th>
                     <th className="pb-1 pr-3">Strvd</th>
                     <th className="pb-1">Eaten</th>
@@ -109,9 +111,11 @@ export default function LogPanel({ onClose }: LogPanelProps) {
                       <td className="py-0.5 pr-3 tabular-nums">{Math.floor(s.time / 60)}:{String(s.time % 60).padStart(2, '0')}</td>
                       <td className="py-0.5 pr-3 tabular-nums text-amber-300">{s.rabbits}</td>
                       <td className="py-0.5 pr-3 tabular-nums text-orange-400">{s.foxes}</td>
+                      <td className="py-0.5 pr-3 tabular-nums text-yellow-200">{s.moose}</td>
                       <td className="py-0.5 pr-3 tabular-nums text-pink-300">{s.flowers}</td>
                       <td className="py-0.5 pr-3 tabular-nums">{s.avgRabbitHunger.toFixed(2)}</td>
                       <td className="py-0.5 pr-3 tabular-nums">{s.avgFoxHunger.toFixed(2)}</td>
+                      <td className="py-0.5 pr-3 tabular-nums">{s.avgMooseHunger.toFixed(2)}</td>
                       <td className="py-0.5 pr-3 tabular-nums text-green-400">+{s.births}</td>
                       <td className="py-0.5 pr-3 tabular-nums text-red-400">{s.starved}</td>
                       <td className="py-0.5 tabular-nums text-red-300">{s.eaten}</td>

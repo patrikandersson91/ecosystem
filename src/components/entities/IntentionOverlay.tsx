@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Line, Html } from '@react-three/drei'
 import { Vector3 } from 'three'
+import type { Group } from 'three'
 import { useDebug } from '../../state/debug-context.tsx'
 
 interface IntentionOverlayProps {
@@ -27,8 +28,8 @@ export default function IntentionOverlay({
   const { showIntentions } = useDebug()
   const lineRef = useRef<{ geometry: { setPositions: (arr: number[]) => void } }>(null!)
   const htmlRef = useRef<HTMLDivElement>(null!)
-  const groupRef = useRef<THREE.Group>(null!)
-  const lineGroupRef = useRef<THREE.Group>(null!)
+  const groupRef = useRef<Group>(null!)
+  const lineGroupRef = useRef<Group>(null!)
 
   useFrame(() => {
     if (!showIntentions) return

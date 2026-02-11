@@ -1,5 +1,5 @@
 import type { Vector3Tuple } from 'three'
-import type { RabbitState, FoxState, FlowerState, SimulationConfig, BehaviorState, WeatherType } from '../types/ecosystem.ts'
+import type { RabbitState, FoxState, MooseState, FlowerState, SimulationConfig, BehaviorState, WeatherType } from '../types/ecosystem.ts'
 
 export type EcosystemAction =
   | { type: 'INIT'; config: SimulationConfig }
@@ -9,12 +9,14 @@ export type EcosystemAction =
   | { type: 'REMOVE_RABBIT'; id: string }
   | { type: 'SPAWN_FOX'; fox: FoxState }
   | { type: 'REMOVE_FOX'; id: string }
-  | { type: 'UPDATE_ENTITY_POSITION'; id: string; entityType: 'rabbit' | 'fox'; position: Vector3Tuple; velocity: Vector3Tuple }
-  | { type: 'UPDATE_ENTITY_NEEDS'; id: string; entityType: 'rabbit' | 'fox'; hunger: number; thirst: number }
-  | { type: 'UPDATE_ENTITY_BEHAVIOR'; id: string; entityType: 'rabbit' | 'fox'; behavior: BehaviorState }
+  | { type: 'SPAWN_MOOSE'; moose: MooseState }
+  | { type: 'REMOVE_MOOSE'; id: string }
+  | { type: 'UPDATE_ENTITY_POSITION'; id: string; entityType: 'rabbit' | 'fox' | 'moose'; position: Vector3Tuple; velocity: Vector3Tuple }
+  | { type: 'UPDATE_ENTITY_NEEDS'; id: string; entityType: 'rabbit' | 'fox' | 'moose'; hunger: number; thirst: number }
+  | { type: 'UPDATE_ENTITY_BEHAVIOR'; id: string; entityType: 'rabbit' | 'fox' | 'moose'; behavior: BehaviorState }
   | { type: 'EAT_FLOWER'; flowerId: string; entityId: string }
-  | { type: 'DRINK'; entityId: string; entityType: 'rabbit' | 'fox' }
-  | { type: 'KILL_ENTITY'; id: string; entityType: 'rabbit' | 'fox' }
+  | { type: 'DRINK'; entityId: string; entityType: 'rabbit' | 'fox' | 'moose' }
+  | { type: 'KILL_ENTITY'; id: string; entityType: 'rabbit' | 'fox' | 'moose' }
   | { type: 'SPAWN_FLOWER'; flower: FlowerState }
   | { type: 'RABBIT_MATE'; maleId: string; femaleId: string }
   | { type: 'FOX_MATE'; maleId: string; femaleId: string }
