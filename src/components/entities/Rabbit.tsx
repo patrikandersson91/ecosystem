@@ -12,6 +12,7 @@ import {
   WORLD_SIZE,
   MATE_RADIUS,
   MATING_COOLDOWN,
+  MAX_RABBITS,
   getSightMultiplier,
 } from '../../types/ecosystem.ts';
 import { forEachNearbyObstacle } from '../../data/obstacles.ts';
@@ -353,7 +354,8 @@ export default function Rabbit({ data }: RabbitProps) {
       thirstRef.current > NEED_THRESHOLD &&
       isAdultRef.current &&
       !pregnantRef.current &&
-      matingCooldownRef.current <= 0
+      matingCooldownRef.current <= 0 &&
+      state.rabbits.length < MAX_RABBITS
     ) {
       // Find eligible mates: opposite sex, adult, not pregnant
       const eligibleMates = state.rabbits.filter(

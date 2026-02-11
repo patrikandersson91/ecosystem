@@ -70,7 +70,7 @@ function FlowerRegrowth() {
     if (timer.current > 0.75) {
       timer.current = 0;
       const aliveCount = state.flowers.filter((f) => f.alive).length;
-      const targetFlowerCount = Math.floor(75 * WORLD_SCALE);
+      const targetFlowerCount = Math.floor(85 * WORLD_SCALE);
       const spawnCount =
         aliveCount < targetFlowerCount
           ? Math.max(1, Math.floor((targetFlowerCount - aliveCount) / 50))

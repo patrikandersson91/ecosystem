@@ -22,6 +22,8 @@ import {
   WORLD_SIZE,
   WORLD_SCALE,
   WEATHER_CHANGE_INTERVAL,
+  MAX_RABBITS,
+  MAX_FOXES,
 } from '../types/ecosystem.ts';
 import { isInWater } from '../utils/river-path';
 import { groundHeightAt } from '../utils/terrain-height.ts';
@@ -30,7 +32,6 @@ import type { LogEvent } from './simulation-log.tsx';
 
 // ─── Helpers ────────────────────────────────────────────────
 
-const MAX_RABBITS = 200;
 const FLOWER_MAX_SPAWN_HEIGHT = 18;
 const UI_STATE_PUBLISH_INTERVAL_MS = 120;
 
@@ -133,7 +134,7 @@ function ecosystemReducer(
         rabbits: generateRabbits(
           Math.min(action.config.initialRabbits, MAX_RABBITS),
         ),
-        foxes: generateFoxes(action.config.initialFoxes),
+        foxes: generateFoxes(Math.min(action.config.initialFoxes, MAX_FOXES)),
         moose: generateMoose(action.config.initialMoose),
         flowers: generateFlowers(action.config.initialFlowers),
         time: 0,
@@ -181,6 +182,7 @@ function ecosystemReducer(
       };
 
     case 'SPAWN_FOX':
+      if (state.foxes.length >= MAX_FOXES) return state;
       return { ...state, foxes: [...state.foxes, action.fox] };
 
     case 'REMOVE_FOX':
@@ -373,6 +375,7 @@ function ecosystemReducer(
       return { ...state, flowers: [...state.flowers, action.flower] };
 
     case 'RABBIT_MATE':
+      if (state.rabbits.length >= MAX_RABBITS) return state;
       return {
         ...state,
         rabbits: state.rabbits.map((r) => {
@@ -391,6 +394,7 @@ function ecosystemReducer(
       };
 
     case 'FOX_MATE':
+      if (state.foxes.length >= MAX_FOXES) return state;
       return {
         ...state,
         foxes: state.foxes.map((f) => {
@@ -458,7 +462,7 @@ const defaultConfig: SimulationConfig = {
   initialRabbits: 30,
   initialFoxes: 8,
   initialMoose: 3,
-  initialFlowers: Math.floor(55 * WORLD_SCALE),
+  initialFlowers: Math.floor(65 * WORLD_SCALE),
 };
 
 const initialState: EcosystemState = {
@@ -616,17 +620,23 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
           }
           break;
         case 'RABBIT_MATE':
-          event = { time: t, type: 'mate', detail: 'Rabbits mated' };
+          if (latestState.rabbits.length < MAX_RABBITS) {
+            event = { time: t, type: 'mate', detail: 'Rabbits mated' };
+          }
           break;
         case 'SPAWN_FOX':
-          event = {
-            time: t,
-            type: 'birth',
-            detail: `Fox born (${action.fox.sex})`,
-          };
+          if (latestState.foxes.length < MAX_FOXES) {
+            event = {
+              time: t,
+              type: 'birth',
+              detail: `Fox born (${action.fox.sex})`,
+            };
+          }
           break;
         case 'FOX_MATE':
-          event = { time: t, type: 'mate', detail: 'Foxes mated' };
+          if (latestState.foxes.length < MAX_FOXES) {
+            event = { time: t, type: 'mate', detail: 'Foxes mated' };
+          }
           break;
         case 'RECORD_EXTINCTION': {
           const speciesLabel =

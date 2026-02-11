@@ -10,7 +10,7 @@ export default function LandingPage() {
   const [rabbits, setRabbits] = useState(30)
   const [foxes, setFoxes] = useState(8)
   const [moose, setMoose] = useState(3)
-  const [flowers, setFlowers] = useState(55)
+  const [flowers, setFlowers] = useState(65)
 
   function handleStart() {
     dispatch({
@@ -47,7 +47,7 @@ export default function LandingPage() {
             value={foxes}
             onChange={setFoxes}
             min={1}
-            max={15}
+            max={14}
             color="text-orange-400"
           />
           <SliderField

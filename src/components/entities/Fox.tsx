@@ -11,6 +11,7 @@ import {
   FOX_MATE_RADIUS,
   FOX_MATING_COOLDOWN,
   FOX_HUNT_THRESHOLD,
+  MAX_FOXES,
   getSightMultiplier,
 } from '../../types/ecosystem.ts';
 import { forEachNearbyObstacle } from '../../data/obstacles.ts';
@@ -186,7 +187,7 @@ export default function Fox({ data }: FoxProps) {
             const newMeals = (data.mealsWhilePregnant || 0) + 1;
             if (newMeals >= 2) {
               pregnantRef.current = false;
-              const foxLitterSize = state.foxes.length < 12 ? 1 : 0;
+              const foxLitterSize = state.foxes.length < MAX_FOXES ? 1 : 0;
               for (let i = 0; i < foxLitterSize; i++) {
                 const babyPos: [number, number, number] = [
                   pos.x + (Math.random() - 0.5) * 3,
@@ -249,7 +250,8 @@ export default function Fox({ data }: FoxProps) {
       !pregnantRef.current &&
       matingCooldownRef.current <= 0 &&
       hungerRef.current > 0.65 &&
-      thirstRef.current > NEED_THRESHOLD
+      thirstRef.current > NEED_THRESHOLD &&
+      state.foxes.length < MAX_FOXES
     ) {
       const eligibleMates = state.foxes.filter(
         (f) =>
