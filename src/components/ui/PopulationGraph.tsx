@@ -65,7 +65,7 @@ export default function PopulationGraph({ snapshots }: PopulationGraphProps) {
   if (snapshots.length < 2) {
     return (
       <div className="mb-3 flex h-[180px] items-center justify-center rounded border border-white/10 bg-white/5">
-        <span className="text-xs text-white/30">Graph will appear after 10 seconds...</span>
+        <span className="text-xs text-white/30">Graph will appear after two snapshots (~60s)...</span>
       </div>
     )
   }
@@ -178,7 +178,7 @@ export default function PopulationGraph({ snapshots }: PopulationGraphProps) {
       {/* Birth/Death mini bar row */}
       {snapshots.length > 1 && (
         <div className="mt-1 flex gap-3 px-1">
-          <span className="text-[10px] text-white/30">Last 5s:</span>
+          <span className="text-[10px] text-white/30">Last 30s:</span>
           <span className="text-[10px] text-green-400">
             +{snapshots[snapshots.length - 1].births} born
           </span>

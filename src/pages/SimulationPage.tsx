@@ -3,36 +3,39 @@ import { Canvas } from '@react-three/fiber'
 import EcosystemScene from '../components/canvas/EcosystemScene.tsx'
 import HUD from '../components/ui/HUD.tsx'
 import Timeline from '../components/ui/Timeline.tsx'
-import { useEcosystem, useEcosystemDispatch } from '../state/ecosystem-context.tsx'
+import { useEcosystemUI, useEcosystemDispatch } from '../state/ecosystem-context.tsx'
 import { DebugProvider } from '../state/debug-context.tsx'
+import { FollowProvider } from '../state/follow-context.tsx'
 import { WORLD_SIZE } from '../types/ecosystem.ts'
 
 export default function SimulationPage() {
-  const state = useEcosystem()
+  const ui = useEcosystemUI()
   const dispatch = useEcosystemDispatch()
 
   useEffect(() => {
-    if (state.rabbits.length === 0 && state.foxes.length === 0 && state.moose.length === 0) {
-      dispatch({ type: 'INIT', config: state.config })
+    if (ui.rabbits === 0 && ui.foxes === 0 && ui.moose === 0) {
+      dispatch({ type: 'INIT', config: ui.config })
     }
   }, [])
 
   return (
     <DebugProvider>
-      <div style={{ position: 'fixed', inset: 0 }}>
-        <Canvas
-          camera={{ position: [0, WORLD_SIZE * 0.6, WORLD_SIZE * 0.8], fov: 60, near: 0.1, far: WORLD_SIZE * 12 }}
-          shadows
-          dpr={[1, 2]}
-          style={{ width: '100%', height: '100%' }}
-        >
-          <Suspense fallback={null}>
-            <EcosystemScene />
-          </Suspense>
-        </Canvas>
-        <Timeline />
-        <HUD />
-      </div>
+      <FollowProvider>
+        <div style={{ position: 'fixed', inset: 0 }}>
+          <Canvas
+            camera={{ position: [0, WORLD_SIZE * 0.6, WORLD_SIZE * 0.8], fov: 60, near: 0.1, far: WORLD_SIZE * 12 }}
+            shadows
+            dpr={[1, 2]}
+            style={{ width: '100%', height: '100%' }}
+          >
+            <Suspense fallback={null}>
+              <EcosystemScene />
+            </Suspense>
+          </Canvas>
+          <Timeline />
+          <HUD />
+        </div>
+      </FollowProvider>
     </DebugProvider>
   )
 }

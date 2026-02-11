@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Color, Vector3 } from 'three'
 import { Sky } from '@react-three/drei'
@@ -40,6 +40,8 @@ const SUN_COLORS = {
   dusk: new Color('#ff6622'),
   night: new Color('#2244aa'),
 }
+
+const UI_CLOCK_SYNC_INTERVAL = 0.12
 
 function lerpColor(a: Color, b: Color, t: number, out: Color): Color {
   out.r = a.r + (b.r - a.r) * t
@@ -164,20 +166,40 @@ export default function WeatherSystem() {
 
   const sunPos = useMemo(() => new Vector3(), [])
   const tempColor = useMemo(() => new Color(), [])
+  const simTimeRef = useRef(state.time)
+  const timeOfDayRef = useRef(state.timeOfDay)
+  const uiSyncTimerRef = useRef(0)
+  const pendingTickDeltaRef = useRef(0)
+
+  useEffect(() => {
+    simTimeRef.current = state.time
+  }, [state.time])
+
+  useEffect(() => {
+    timeOfDayRef.current = state.timeOfDay
+  }, [state.timeOfDay])
 
   useFrame((_, rawDelta) => {
     if (state.paused) return
 
     const delta = rawDelta * state.speed
+    simTimeRef.current += delta
+    timeOfDayRef.current = (timeOfDayRef.current + delta / DAY_DURATION) % 1
+    pendingTickDeltaRef.current += delta
+    uiSyncTimerRef.current += delta
 
-    // Advance simulation clock
-    dispatch({ type: 'TICK', delta })
+    // Publish throttled clock updates to React state.
+    if (uiSyncTimerRef.current >= UI_CLOCK_SYNC_INTERVAL) {
+      dispatch({
+        type: 'ADVANCE_CLOCK',
+        delta: pendingTickDeltaRef.current,
+        timeOfDay: timeOfDayRef.current,
+      })
+      uiSyncTimerRef.current = 0
+      pendingTickDeltaRef.current = 0
+    }
 
-    // Update time of day
-    const newTimeOfDay = (state.timeOfDay + delta / DAY_DURATION) % 1
-    dispatch({ type: 'SET_TIME_OF_DAY', timeOfDay: newTimeOfDay })
-
-    const t = newTimeOfDay
+    const t = timeOfDayRef.current
 
     const rainDim = 1.0
 
@@ -225,7 +247,7 @@ export default function WeatherSystem() {
 
     // Sky color
     getSkyColor(t, tempColor)
-    scene.background = tempColor.clone()
+    scene.background = tempColor
 
     // Fog
     getFogColor(t, tempColor)

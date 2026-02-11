@@ -1,46 +1,56 @@
-import { useRef, useMemo } from 'react'
-import { useFrame } from '@react-three/fiber'
-import { Vector3 } from 'three'
-import type { Group } from 'three'
-import type { MooseState } from '../../types/ecosystem.ts'
+import { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Vector3 } from 'three';
+import type { Group } from 'three';
+import type { MooseState } from '../../types/ecosystem.ts';
 import {
   MAX_SPEED_MOOSE,
   NEED_THRESHOLD,
   WORLD_SIZE,
-} from '../../types/ecosystem.ts'
-import { ALL_OBSTACLES } from '../../data/obstacles.ts'
-import { waterDepthAt } from '../../utils/river-path.ts'
-import { groundHeightAt } from '../../utils/terrain-height.ts'
-import { useSteering } from '../../hooks/useSteering.ts'
-import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts'
-import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
-import { findRandomAmongNearest, findNearestWaterPoint } from '../../state/ecosystem-selectors.ts'
-import StatusBar from './StatusBar.tsx'
-import IntentionOverlay from './IntentionOverlay.tsx'
+} from '../../types/ecosystem.ts';
+import { forEachNearbyObstacle } from '../../data/obstacles.ts';
+import { waterDepthAt } from '../../utils/river-path.ts';
+import { groundHeightAt } from '../../utils/terrain-height.ts';
+import { resolveTreeCollisions } from '../../utils/tree-collision.ts';
+import { useSteering } from '../../hooks/useSteering.ts';
+import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
+import {
+  useEcosystem,
+  useEcosystemDispatch,
+} from '../../state/ecosystem-context.tsx';
+import { useFollow } from '../../state/follow-context.tsx';
+import {
+  findRandomAmongNearest,
+  findNearestWaterPoint,
+} from '../../state/ecosystem-selectors.ts';
+import StatusBar from './StatusBar.tsx';
+import IntentionOverlay from './IntentionOverlay.tsx';
 
 interface MooseProps {
-  data: MooseState
+  data: MooseState;
 }
 
-const MOOSE_HUNGER_RATE = 0.00025
-const MOOSE_THIRST_RATE = 0.001
+const MOOSE_HUNGER_RATE = 0.00025;
+const MOOSE_THIRST_RATE = 0.001;
+const MOOSE_OBSTACLE_QUERY_RADIUS = 1.7;
 
 export default function Moose({ data }: MooseProps) {
-  const groupRef = useRef<Group>(null!)
-  const flLegRef = useRef<Group>(null!)
-  const frLegRef = useRef<Group>(null!)
-  const blLegRef = useRef<Group>(null!)
-  const brLegRef = useRef<Group>(null!)
-  const state = useEcosystem()
-  const dispatch = useEcosystemDispatch()
+  const groupRef = useRef<Group>(null!);
+  const flLegRef = useRef<Group>(null!);
+  const frLegRef = useRef<Group>(null!);
+  const blLegRef = useRef<Group>(null!);
+  const brLegRef = useRef<Group>(null!);
+  const state = useEcosystem();
+  const dispatch = useEcosystemDispatch();
+  const { setFollowTarget } = useFollow();
 
-  const position = useRef(new Vector3(...data.position))
-  const velocity = useRef(new Vector3(...data.velocity))
-  const syncTimer = useRef(0)
-  const targetFlowerIdRef = useRef<string | null>(null)
+  const position = useRef(new Vector3(...data.position));
+  const velocity = useRef(new Vector3(...data.velocity));
+  const syncTimer = useRef(0);
+  const targetFlowerIdRef = useRef<string | null>(null);
 
-  const intentionRef = useRef('Wandering')
-  const intentionTargetRef = useRef<Vector3 | null>(null)
+  const intentionRef = useRef('Wandering');
+  const intentionTargetRef = useRef<Vector3 | null>(null);
 
   const { seek, wander, applyForces } = useSteering({
     maxSpeed: MAX_SPEED_MOOSE,
@@ -49,137 +59,155 @@ export default function Moose({ data }: MooseProps) {
     wanderRadius: 1.5,
     wanderDistance: 3.5,
     wanderJitter: 0.18,
-  })
+  });
 
-  const { tick: tickNeeds, hungerRef, thirstRef } = useEntityNeeds({
+  const {
+    tick: tickNeeds,
+    hungerRef,
+    thirstRef,
+  } = useEntityNeeds({
     id: data.id,
     entityType: 'moose',
     hunger: data.hunger,
     thirst: data.thirst,
     hungerRate: MOOSE_HUNGER_RATE,
     thirstRate: MOOSE_THIRST_RATE,
-  })
+  });
 
-  const tempForce = useMemo(() => new Vector3(), [])
-  const tempTarget = useMemo(() => new Vector3(), [])
+  const tempForce = useMemo(() => new Vector3(), []);
+  const tempTarget = useMemo(() => new Vector3(), []);
 
   useFrame((_frameState, rawDelta) => {
-    if (state.paused) return
+    if (state.paused) return;
 
-    const delta = rawDelta * state.speed
-    const needs = tickNeeds(delta)
-    if (needs.dead) return
+    const delta = rawDelta * state.speed;
+    const needs = tickNeeds(delta);
+    if (needs.dead) return;
 
-    const pos = position.current
-    const vel = velocity.current
-    tempForce.set(0, 0, 0)
+    const pos = position.current;
+    const vel = velocity.current;
+    tempForce.set(0, 0, 0);
 
     if (thirstRef.current < NEED_THRESHOLD) {
-      const riverPt = findNearestWaterPoint([pos.x, pos.y, pos.z])
-      tempTarget.set(...riverPt)
-      tempForce.add(seek(pos, vel, tempTarget))
-      intentionRef.current = 'Seeking water'
-      intentionTargetRef.current = tempTarget.clone()
+      const riverPt = findNearestWaterPoint([pos.x, pos.y, pos.z]);
+      tempTarget.set(...riverPt);
+      tempForce.add(seek(pos, vel, tempTarget));
+      intentionRef.current = 'Seeking water';
+      intentionTargetRef.current = tempTarget.clone();
 
       if (pos.distanceTo(tempTarget) < 1.2) {
-        dispatch({ type: 'DRINK', entityId: data.id, entityType: 'moose' })
+        dispatch({ type: 'DRINK', entityId: data.id, entityType: 'moose' });
       }
     } else {
-      const aliveFlowers = state.flowers.filter(f => f.alive)
+      const aliveFlowers = state.flowers.filter((f) => f.alive);
       let targetFlower = targetFlowerIdRef.current
-        ? aliveFlowers.find(f => f.id === targetFlowerIdRef.current) ?? null
-        : null
+        ? (aliveFlowers.find((f) => f.id === targetFlowerIdRef.current) ?? null)
+        : null;
 
       if (!targetFlower) {
-        const picked = findRandomAmongNearest([pos.x, pos.y, pos.z], aliveFlowers, 4)
-        targetFlower = picked
-        targetFlowerIdRef.current = picked ? picked.id : null
+        const picked = findRandomAmongNearest(
+          [pos.x, pos.y, pos.z],
+          aliveFlowers,
+          4,
+        );
+        targetFlower = picked;
+        targetFlowerIdRef.current = picked ? picked.id : null;
       }
 
       if (targetFlower) {
-        tempTarget.set(...targetFlower.position)
-        tempForce.add(seek(pos, vel, tempTarget))
-        intentionRef.current = 'Seeking food'
-        intentionTargetRef.current = tempTarget.clone()
+        tempTarget.set(...targetFlower.position);
+        tempForce.add(seek(pos, vel, tempTarget));
+        intentionRef.current = 'Seeking food';
+        intentionTargetRef.current = tempTarget.clone();
 
         if (pos.distanceTo(tempTarget) < 1.1) {
-          targetFlowerIdRef.current = null
-          dispatch({ type: 'EAT_FLOWER', flowerId: targetFlower.id, entityId: data.id })
+          targetFlowerIdRef.current = null;
+          dispatch({
+            type: 'EAT_FLOWER',
+            flowerId: targetFlower.id,
+            entityId: data.id,
+          });
         }
       } else {
-        tempForce.add(wander(pos, vel))
-        intentionRef.current = 'Wandering'
-        intentionTargetRef.current = null
+        tempForce.add(wander(pos, vel));
+        intentionRef.current = 'Wandering';
+        intentionTargetRef.current = null;
       }
     }
 
-    for (const obs of ALL_OBSTACLES) {
-      const dx = pos.x - obs.position[0]
-      const dz = pos.z - obs.position[2]
-      const dist = Math.sqrt(dx * dx + dz * dz)
-      const avoidR = obs.radius + 0.8
+    forEachNearbyObstacle(pos.x, pos.z, MOOSE_OBSTACLE_QUERY_RADIUS, (obs) => {
+      const dx = pos.x - obs.position[0];
+      const dz = pos.z - obs.position[2];
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const avoidR = obs.radius + 0.8;
       if (dist < avoidR && dist > 0.01) {
-        const strength = ((avoidR - dist) / avoidR) * 10
-        tempForce.x += (dx / dist) * strength
-        tempForce.z += (dz / dist) * strength
+        const strength = ((avoidR - dist) / avoidR) * 10;
+        tempForce.x += (dx / dist) * strength;
+        tempForce.z += (dz / dist) * strength;
       }
-    }
+    });
 
-    applyForces(pos, vel, tempForce, delta)
+    applyForces(pos, vel, tempForce, delta);
+    resolveTreeCollisions(pos, vel, 0.85);
 
-    const bound = WORLD_SIZE * 0.95
+    const bound = WORLD_SIZE * 0.95;
     if (pos.x < -bound || pos.x > bound) {
-      vel.x *= -1
-      pos.x = Math.max(-bound, Math.min(bound, pos.x))
+      vel.x *= -1;
+      pos.x = Math.max(-bound, Math.min(bound, pos.x));
     }
     if (pos.z < -bound || pos.z > bound) {
-      vel.z *= -1
-      pos.z = Math.max(-bound, Math.min(bound, pos.z))
+      vel.z *= -1;
+      pos.z = Math.max(-bound, Math.min(bound, pos.z));
     }
 
-    const terrainY = groundHeightAt(pos.x, pos.z)
-    const depth = waterDepthAt(pos.x, pos.z)
-    const sinkY = depth > 0 ? -depth * 0.75 : 0
-    groupRef.current.position.set(pos.x, terrainY + 0.9 + sinkY, pos.z)
+    const terrainY = groundHeightAt(pos.x, pos.z);
+    const depth = waterDepthAt(pos.x, pos.z);
+    const sinkY = depth > 0 ? -depth * 0.75 : 0;
+    groupRef.current.position.set(pos.x, terrainY + 0.9 + sinkY, pos.z);
 
-    const speed = vel.length()
+    const speed = vel.length();
     if (speed > 0.08) {
-      groupRef.current.rotation.y = Math.atan2(vel.x, vel.z)
+      groupRef.current.rotation.y = Math.atan2(vel.x, vel.z);
 
       // Animate legs
-      const t = state.time * 20 // Speed of animation
+      const t = state.time * 20; // Speed of animation
       // Diagonal pairs move together
-      const leg1Angle = Math.sin(t) * 0.4
+      const leg1Angle = Math.sin(t) * 0.4;
 
-      if (flLegRef.current) flLegRef.current.rotation.x = leg1Angle
-      if (brLegRef.current) brLegRef.current.rotation.x = leg1Angle
-      if (frLegRef.current) frLegRef.current.rotation.x = -leg1Angle
-      if (blLegRef.current) blLegRef.current.rotation.x = -leg1Angle
+      if (flLegRef.current) flLegRef.current.rotation.x = leg1Angle;
+      if (brLegRef.current) brLegRef.current.rotation.x = leg1Angle;
+      if (frLegRef.current) frLegRef.current.rotation.x = -leg1Angle;
+      if (blLegRef.current) blLegRef.current.rotation.x = -leg1Angle;
     } else {
       // Idle pose
-      if (flLegRef.current) flLegRef.current.rotation.x = 0
-      if (brLegRef.current) brLegRef.current.rotation.x = 0
-      if (frLegRef.current) frLegRef.current.rotation.x = 0
-      if (blLegRef.current) blLegRef.current.rotation.x = 0
+      if (flLegRef.current) flLegRef.current.rotation.x = 0;
+      if (brLegRef.current) brLegRef.current.rotation.x = 0;
+      if (frLegRef.current) frLegRef.current.rotation.x = 0;
+      if (blLegRef.current) blLegRef.current.rotation.x = 0;
     }
 
-    syncTimer.current += delta
+    syncTimer.current += delta;
     if (syncTimer.current > 0.5) {
-      syncTimer.current = 0
+      syncTimer.current = 0;
       dispatch({
         type: 'UPDATE_ENTITY_POSITION',
         id: data.id,
         entityType: 'moose',
         position: [pos.x, 0.9, pos.z],
         velocity: [vel.x, vel.y, vel.z],
-      })
+      });
     }
-  })
+  });
 
   return (
     <>
       <group
         ref={groupRef}
+        name={`animal-moose-${data.id}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          setFollowTarget({ id: data.id, type: 'moose' });
+        }}
         position={[
           data.position[0],
           groundHeightAt(data.position[0], data.position[2]) + data.position[1],
@@ -215,7 +243,7 @@ export default function Moose({ data }: MooseProps) {
             <boxGeometry args={[0.23, 0.06, 0.05]} />
             <meshStandardMaterial color="#d6c4a2" />
           </mesh>
-{/* Front Left Leg */}
+          {/* Front Left Leg */}
           <group ref={flLegRef} position={[-0.2, -0.11, 0.25]}>
             <mesh position={[0, -0.17, 0]} castShadow>
               <boxGeometry args={[0.1, 0.34, 0.1]} />
@@ -257,9 +285,9 @@ export default function Moose({ data }: MooseProps) {
         positionRef={position}
         targetRef={intentionTargetRef}
         intentionRef={intentionRef}
-        labelY={2.4}
+        labelY={3.3}
         color="#c9a86d"
       />
     </>
-  )
+  );
 }

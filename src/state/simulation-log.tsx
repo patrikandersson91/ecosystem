@@ -18,7 +18,7 @@ export interface LogSnapshot {
 
 export interface LogEvent {
   time: number
-  type: 'birth' | 'starve_rabbit' | 'starve_fox' | 'starve_moose' | 'eaten' | 'mate' | 'game_over'
+  type: 'birth' | 'starve_rabbit' | 'starve_fox' | 'starve_moose' | 'eaten' | 'mate' | 'extinction'
   detail: string
 }
 
@@ -40,7 +40,7 @@ const SimulationLogContext = createContext<SimulationLogState>({
   recordEvent: () => {},
 })
 
-const SNAPSHOT_INTERVAL = 5 // every 5 sim seconds
+const SNAPSHOT_INTERVAL = 30 // every 30 sim seconds
 
 export function SimulationLogProvider({ children }: { children: ReactNode }) {
   const [snapshots, setSnapshots] = useState<LogSnapshot[]>([])

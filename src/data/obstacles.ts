@@ -6,6 +6,8 @@ export interface Obstacle {
   radius: number // collision radius
 }
 
+type ObstacleVisitor = (obstacle: Obstacle) => void
+
 function seededRandom(seed: number) {
   let s = seed
   return () => {
@@ -216,9 +218,91 @@ export const BUSH_POSITIONS = generatePositions(
   rng,
 )
 
-// Flat list of all obstacles for collision avoidance
+// Trees are handled separately so movement can block trunks, not full canopies.
+// Trunk geometry uses ~0.25 max radius, so keep collider close to that size.
+export const TREE_OBSTACLES: Obstacle[] = ALL_TREES.map(p => ({ position: p, radius: 0.28 }))
+export const TREE_MAX_RADIUS = 0.28
+
+// Flat list of all obstacles for steering avoidance
 export const ALL_OBSTACLES: Obstacle[] = [
-  ...ALL_TREES.map(p => ({ position: p, radius: 1.0 })),
+  ...TREE_OBSTACLES,
   ...STONE_POSITIONS.map(p => ({ position: p, radius: 0.8 })),
   ...BUSH_POSITIONS.map(p => ({ position: p, radius: 0.6 })),
 ]
+
+const GRID_CELL_SIZE = 6
+const GRID_INV_CELL_SIZE = 1 / GRID_CELL_SIZE
+
+function gridKey(ix: number, iz: number): string {
+  return `${ix},${iz}`
+}
+
+function gridIndex(v: number): number {
+  return Math.floor(v * GRID_INV_CELL_SIZE)
+}
+
+function buildObstacleGrid(obstacles: Obstacle[]): Map<string, Obstacle[]> {
+  const grid = new Map<string, Obstacle[]>()
+  for (const obstacle of obstacles) {
+    const ix = gridIndex(obstacle.position[0])
+    const iz = gridIndex(obstacle.position[2])
+    const key = gridKey(ix, iz)
+    const bucket = grid.get(key)
+    if (bucket) {
+      bucket.push(obstacle)
+    } else {
+      grid.set(key, [obstacle])
+    }
+  }
+  return grid
+}
+
+const OBSTACLE_GRID = buildObstacleGrid(ALL_OBSTACLES)
+const TREE_GRID = buildObstacleGrid(TREE_OBSTACLES)
+
+function forEachNearby(
+  grid: Map<string, Obstacle[]>,
+  x: number,
+  z: number,
+  searchRadius: number,
+  visit: ObstacleVisitor,
+): void {
+  const minX = gridIndex(x - searchRadius)
+  const maxX = gridIndex(x + searchRadius)
+  const minZ = gridIndex(z - searchRadius)
+  const maxZ = gridIndex(z + searchRadius)
+  const searchRadiusSq = searchRadius * searchRadius
+
+  for (let ix = minX; ix <= maxX; ix++) {
+    for (let iz = minZ; iz <= maxZ; iz++) {
+      const bucket = grid.get(gridKey(ix, iz))
+      if (!bucket) continue
+
+      for (const obstacle of bucket) {
+        const dx = x - obstacle.position[0]
+        const dz = z - obstacle.position[2]
+        if (dx * dx + dz * dz <= searchRadiusSq) {
+          visit(obstacle)
+        }
+      }
+    }
+  }
+}
+
+export function forEachNearbyObstacle(
+  x: number,
+  z: number,
+  searchRadius: number,
+  visit: ObstacleVisitor,
+): void {
+  forEachNearby(OBSTACLE_GRID, x, z, searchRadius, visit)
+}
+
+export function forEachNearbyTreeObstacle(
+  x: number,
+  z: number,
+  searchRadius: number,
+  visit: ObstacleVisitor,
+): void {
+  forEachNearby(TREE_GRID, x, z, searchRadius, visit)
+}

@@ -1,6 +1,9 @@
 import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import type { RefObject } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import * as THREE from 'three';
 import Terrain from './Terrain.tsx';
 import River from './River.tsx';
 import Ponds from './Ponds.tsx';
@@ -21,22 +24,35 @@ import {
   useEcosystemDispatch,
   randomFlowerPosition,
 } from '../../state/ecosystem-context.tsx';
+import { useFollow } from '../../state/follow-context.tsx';
 
-function GameOverDetector() {
+function ExtinctionRecorder() {
   const state = useEcosystem();
   const dispatch = useEcosystemDispatch();
+  const recordedRef = useRef({ rabbits: false, foxes: false, flowers: false });
 
   useFrame(() => {
-    if (state.paused || state.gameOver) return;
-    // Only check once simulation has started (has entities)
-    if (state.time < 1) return;
+    if (state.paused) return;
+    if (state.time < 1) {
+      recordedRef.current = { rabbits: false, foxes: false, flowers: false };
+      return;
+    }
 
     const rabbits = state.rabbits.length;
     const foxes = state.foxes.length;
     const flowers = state.flowers.filter((f) => f.alive).length;
 
-    if (rabbits === 0 || foxes === 0 || flowers === 0) {
-      dispatch({ type: 'GAME_OVER' });
+    if (rabbits === 0 && !recordedRef.current.rabbits) {
+      recordedRef.current.rabbits = true;
+      dispatch({ type: 'RECORD_EXTINCTION', species: 'rabbits', time: state.time });
+    }
+    if (foxes === 0 && !recordedRef.current.foxes) {
+      recordedRef.current.foxes = true;
+      dispatch({ type: 'RECORD_EXTINCTION', species: 'foxes', time: state.time });
+    }
+    if (flowers === 0 && !recordedRef.current.flowers) {
+      recordedRef.current.flowers = true;
+      dispatch({ type: 'RECORD_EXTINCTION', species: 'flowers', time: state.time });
     }
   });
 
@@ -54,10 +70,10 @@ function FlowerRegrowth() {
     if (timer.current > 0.75) {
       timer.current = 0;
       const aliveCount = state.flowers.filter((f) => f.alive).length;
-      const targetFlowerCount = Math.floor(120 * WORLD_SCALE);
+      const targetFlowerCount = Math.floor(75 * WORLD_SCALE);
       const spawnCount =
         aliveCount < targetFlowerCount
-          ? Math.max(1, Math.floor((targetFlowerCount - aliveCount) / 30))
+          ? Math.max(1, Math.floor((targetFlowerCount - aliveCount) / 50))
           : 0;
       for (let i = 0; i < spawnCount; i++) {
         dispatch({
@@ -75,16 +91,87 @@ function FlowerRegrowth() {
   return null;
 }
 
+function FollowCameraController({
+  controlsRef,
+}: {
+  controlsRef: RefObject<OrbitControlsImpl | null>;
+}) {
+  const { scene, camera } = useThree();
+  const { followTarget, stopFollowing } = useFollow();
+  const lookAt = useRef(new THREE.Vector3());
+  const desiredCameraPos = useRef(new THREE.Vector3());
+  const worldPos = useRef(new THREE.Vector3());
+  const forward = useRef(new THREE.Vector3(0, 0, 1));
+  const worldQuat = useRef(new THREE.Quaternion());
+  const heightOffset = useRef(new THREE.Vector3());
+  const lookOffset = useRef(new THREE.Vector3(0, 1.2, 0));
+
+  useFrame((_, delta) => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    if (!followTarget) {
+      controls.enabled = true;
+      return;
+    }
+
+    const objectName = `animal-${followTarget.type}-${followTarget.id}`;
+    const targetObject = scene.getObjectByName(objectName);
+    if (!targetObject) {
+      stopFollowing();
+      controls.enabled = true;
+      return;
+    }
+
+    controls.enabled = false;
+
+    targetObject.getWorldPosition(worldPos.current);
+    targetObject.getWorldQuaternion(worldQuat.current);
+
+    forward.current.set(0, 0, 1).applyQuaternion(worldQuat.current);
+    forward.current.y = 0;
+    if (forward.current.lengthSq() < 0.0001) {
+      forward.current.set(0, 0, 1);
+    } else {
+      forward.current.normalize();
+    }
+
+    const followDistance = followTarget.type === 'moose' ? 8.5 : 7;
+    const followHeight = followTarget.type === 'moose' ? 3.5 : 2.8;
+
+    heightOffset.current.set(0, followHeight, 0);
+    desiredCameraPos.current
+      .copy(worldPos.current)
+      .addScaledVector(forward.current, -followDistance)
+      .add(heightOffset.current);
+    lookAt.current.copy(worldPos.current).add(lookOffset.current);
+
+    const damping = 1 - Math.exp(-delta * 6);
+    camera.position.lerp(desiredCameraPos.current, damping);
+    controls.target.lerp(lookAt.current, damping);
+    camera.lookAt(controls.target);
+    controls.update();
+  });
+
+  return null;
+}
+
 export default function EcosystemScene() {
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+
   return (
     <>
       <WeatherSystem />
       <color attach="background" args={['#87ceeb']} />
       <OrbitControls
+        ref={controlsRef}
+        enableDamping
+        dampingFactor={0.08}
         maxPolarAngle={Math.PI / 2.1}
         minDistance={5}
         maxDistance={WORLD_SIZE * 1.8}
       />
+      <FollowCameraController controlsRef={controlsRef} />
       <Terrain />
       <Grass />
       <River />
@@ -99,7 +186,7 @@ export default function EcosystemScene() {
       <FoxGroup />
       <MooseGroup />
       <FlowerRegrowth />
-      <GameOverDetector />
+      <ExtinctionRecorder />
     </>
   );
 }

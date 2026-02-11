@@ -4,6 +4,7 @@ import type { RabbitState, FoxState, MooseState, FlowerState, SimulationConfig, 
 export type EcosystemAction =
   | { type: 'INIT'; config: SimulationConfig }
   | { type: 'TICK'; delta: number }
+  | { type: 'ADVANCE_CLOCK'; delta: number; timeOfDay: number }
   | { type: 'TOGGLE_PAUSE' }
   | { type: 'SPAWN_RABBIT'; rabbit: RabbitState }
   | { type: 'REMOVE_RABBIT'; id: string }
@@ -25,4 +26,4 @@ export type EcosystemAction =
   | { type: 'SET_WEATHER'; weather: WeatherType; intensity: number; nextChangeAt: number }
   | { type: 'SET_TIME_OF_DAY'; timeOfDay: number }
   | { type: 'SET_SPEED'; speed: number }
-  | { type: 'GAME_OVER' }
+  | { type: 'RECORD_EXTINCTION'; species: 'rabbits' | 'foxes' | 'flowers'; time: number }

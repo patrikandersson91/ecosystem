@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react'
-import { useEcosystem, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
+import { useEcosystemUI, useEcosystemDispatch } from '../../state/ecosystem-context.tsx'
 
 function getTimeLabel(t: number): string {
   const hours = ((t * 24) + 6) % 24
@@ -25,9 +25,9 @@ function getWeatherIcon(weather: string): string {
 }
 
 export default function Timeline() {
-  const state = useEcosystem()
+  const ui = useEcosystemUI()
   const dispatch = useEcosystemDispatch()
-  const t = state.timeOfDay
+  const t = ui.timeOfDay
   const isNight = t > 0.7 || t < 0.08
 
   const barRef = useRef<HTMLDivElement>(null)
@@ -44,11 +44,11 @@ export default function Timeline() {
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     dragging.current = true
-    wasPausedBeforeDrag.current = state.paused
-    if (!state.paused) dispatch({ type: 'TOGGLE_PAUSE' })
+    wasPausedBeforeDrag.current = ui.paused
+    if (!ui.paused) dispatch({ type: 'TOGGLE_PAUSE' })
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     setTimeFromPointer(e.clientX)
-  }, [setTimeFromPointer, state.paused, dispatch])
+  }, [setTimeFromPointer, ui.paused, dispatch])
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging.current) return
@@ -66,8 +66,8 @@ export default function Timeline() {
     <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center pt-3 gap-1.5">
       {/* Time label */}
       <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/40 px-4 py-1.5 backdrop-blur-md">
-        <span className="text-base" style={{ filter: state.weather.type === 'rainy' ? 'none' : 'drop-shadow(0 0 4px rgba(255,200,50,0.6))' }}>
-          {getWeatherIcon(state.weather.type)}
+        <span className="text-base" style={{ filter: ui.weatherType === 'rainy' ? 'none' : 'drop-shadow(0 0 4px rgba(255,200,50,0.6))' }}>
+          {getWeatherIcon(ui.weatherType)}
         </span>
         <span className="text-sm font-bold text-white tabular-nums">
           {getTimeLabel(t)}

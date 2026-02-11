@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import {
-  useEcosystem,
+  useEcosystemUI,
   useEcosystemDispatch,
 } from '../../state/ecosystem-context.tsx';
 import { useDebug } from '../../state/debug-context.tsx';
+import { useFollow } from '../../state/follow-context.tsx';
 import LogPanel from './LogPanel.tsx';
 
 const SPEED_OPTIONS = [0.5, 1, 5, 20];
@@ -16,18 +17,22 @@ function formatTime(seconds: number): string {
 }
 
 export default function HUD() {
-  const state = useEcosystem();
+  const ui = useEcosystemUI();
   const dispatch = useEcosystemDispatch();
   const { showIntentions, setShowIntentions } = useDebug();
+  const { followTarget, stopFollowing } = useFollow();
   const [showLog, setShowLog] = useState(false);
-  const [dismissedGameOver, setDismissedGameOver] = useState(false);
 
-  const aliveFlowers = state.flowers.filter((f) => f.alive).length;
-
-  const rabbitAdults = state.rabbits.filter((r) => r.isAdult).length;
-  const rabbitBabies = state.rabbits.length - rabbitAdults;
-  const foxAdults = state.foxes.filter((f) => f.isAdult).length;
-  const foxBabies = state.foxes.length - foxAdults;
+  const followedLabel = useMemo(() => {
+    if (!followTarget) return null;
+    if (followTarget.type === 'rabbit') {
+      return `Rabbit ${followTarget.id}`;
+    }
+    if (followTarget.type === 'fox') {
+      return `Fox ${followTarget.id}`;
+    }
+    return `Moose ${followTarget.id}`;
+  }, [followTarget]);
 
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -35,7 +40,7 @@ export default function HUD() {
         {/* Prominent timer */}
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold tabular-nums text-white">
-            {formatTime(state.time)}
+            {formatTime(ui.time)}
           </span>
           <span className="text-xs text-white/50">elapsed</span>
         </div>
@@ -43,18 +48,38 @@ export default function HUD() {
         <div className="flex flex-col gap-1.5">
           <Stat
             label="Rabbits"
-            value={state.rabbits.length}
-            detail={`${rabbitAdults} adult${rabbitAdults !== 1 ? 's' : ''}, ${rabbitBabies} bab${rabbitBabies !== 1 ? 'ies' : 'y'}`}
+            value={ui.rabbits}
+            detail={
+              ui.rabbits === 0 && ui.extinctions?.rabbits != null
+                ? `Extinct at ${formatTime(ui.extinctions.rabbits)}`
+                : `${ui.rabbitAdults} adult${ui.rabbitAdults !== 1 ? 's' : ''}, ${ui.rabbitBabies} bab${ui.rabbitBabies !== 1 ? 'ies' : 'y'}`
+            }
             color="text-amber-300"
+            extinct={ui.rabbits === 0 && ui.extinctions?.rabbits != null}
           />
           <Stat
             label="Foxes"
-            value={state.foxes.length}
-            detail={`${foxAdults} adult${foxAdults !== 1 ? 's' : ''}, ${foxBabies} bab${foxBabies !== 1 ? 'ies' : 'y'}`}
+            value={ui.foxes}
+            detail={
+              ui.foxes === 0 && ui.extinctions?.foxes != null
+                ? `Extinct at ${formatTime(ui.extinctions.foxes)}`
+                : `${ui.foxAdults} adult${ui.foxAdults !== 1 ? 's' : ''}, ${ui.foxBabies} bab${ui.foxBabies !== 1 ? 'ies' : 'y'}`
+            }
             color="text-orange-400"
+            extinct={ui.foxes === 0 && ui.extinctions?.foxes != null}
           />
-          <Stat label="Moose" value={state.moose.length} color="text-yellow-200" />
-          <Stat label="Flowers" value={aliveFlowers} color="text-pink-300" />
+          <Stat label="Moose" value={ui.moose} color="text-yellow-200" />
+          <Stat
+            label="Flowers"
+            value={ui.aliveFlowers}
+            detail={
+              ui.aliveFlowers === 0 && ui.extinctions?.flowers != null
+                ? `Extinct at ${formatTime(ui.extinctions.flowers)}`
+                : undefined
+            }
+            color="text-pink-300"
+            extinct={ui.aliveFlowers === 0 && ui.extinctions?.flowers != null}
+          />
         </div>
 
         {/* Speed control */}
@@ -66,7 +91,7 @@ export default function HUD() {
                 key={s}
                 onClick={() => dispatch({ type: 'SET_SPEED', speed: s })}
                 className={`cursor-pointer rounded px-2 py-0.5 text-xs font-medium transition-colors ${
-                  state.speed === s
+                  ui.speed === s
                     ? 'bg-cyan-500 text-white'
                     : 'bg-white/10 text-white/70 hover:bg-white/20'
                 }`}
@@ -90,10 +115,9 @@ export default function HUD() {
         <div className="flex gap-2">
           <button
             onClick={() => dispatch({ type: 'TOGGLE_PAUSE' })}
-            disabled={state.gameOver}
-            className="cursor-pointer rounded bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="cursor-pointer rounded bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20"
           >
-            {state.paused ? 'Resume' : 'Pause'}
+            {ui.paused ? 'Resume' : 'Pause'}
           </button>
           <button
             onClick={() => setShowLog((v) => !v)}
@@ -104,10 +128,7 @@ export default function HUD() {
             Log
           </button>
           <button
-            onClick={() => {
-              setDismissedGameOver(false);
-              dispatch({ type: 'INIT', config: state.config });
-            }}
+            onClick={() => dispatch({ type: 'INIT', config: ui.config })}
             className="cursor-pointer rounded bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20"
           >
             Restart
@@ -115,51 +136,23 @@ export default function HUD() {
         </div>
       </div>
 
+      {followTarget && followedLabel && (
+        <div className="pointer-events-auto absolute right-0 top-0 m-3 inline-flex flex-col gap-2 rounded-xl bg-black/45 p-3 backdrop-blur-md">
+          <div className="text-xs text-white/60">Following</div>
+          <div className="text-sm font-semibold text-cyan-200">{followedLabel}</div>
+          <button
+            onClick={stopFollowing}
+            className="cursor-pointer rounded bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20"
+          >
+            Stop following
+          </button>
+        </div>
+      )}
+
       {/* Log panel */}
       <AnimatePresence>
         {showLog && <LogPanel onClose={() => setShowLog(false)} />}
       </AnimatePresence>
-
-      {/* Game Over overlay */}
-      {state.gameOver && !dismissedGameOver && (
-        <div className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-4 rounded-2xl bg-black/60 px-10 py-8 backdrop-blur-md">
-            <h2 className="text-3xl font-bold text-red-400">Simulation Over</h2>
-            <p className="text-sm text-white/70">
-              {state.rabbits.length === 0 && 'All rabbits have perished.'}
-              {state.foxes.length === 0 && 'All foxes have perished.'}
-              {state.flowers.filter((f) => f.alive).length === 0 &&
-                'All flowers have wilted.'}
-            </p>
-            <p className="text-lg text-white/90">
-              Survived for{' '}
-              <span className="font-bold text-white">
-                {formatTime(state.time)}
-              </span>
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setDismissedGameOver(false);
-                  dispatch({ type: 'INIT', config: state.config });
-                }}
-                className="cursor-pointer rounded-lg bg-cyan-600 px-5 py-2 text-sm font-medium text-white hover:bg-cyan-500"
-              >
-                Restart
-              </button>
-              <button
-                onClick={() => {
-                  setDismissedGameOver(true);
-                  setShowLog(true);
-                }}
-                className="cursor-pointer rounded-lg bg-white/10 px-5 py-2 text-sm text-white hover:bg-white/20"
-              >
-                View Log
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -169,16 +162,20 @@ function Stat({
   value,
   detail,
   color,
+  extinct,
 }: {
   label: string;
   value: number;
   detail?: string;
   color: string;
+  extinct?: boolean;
 }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className={`text-xs font-medium ${color}`}>{label}</span>
-      <span className="text-sm font-bold text-white">{value}</span>
+      <span className={`text-sm font-bold ${extinct ? 'text-red-400' : 'text-white'}`}>
+        {extinct ? 'Extinct' : value}
+      </span>
       {detail && <span className="text-xs text-white/50">{detail}</span>}
     </div>
   );

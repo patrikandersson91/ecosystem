@@ -110,6 +110,13 @@ export interface SimulationConfig {
   initialFlowers: number;
 }
 
+/** Time (seconds) when a species went extinct. Undefined = not yet extinct. */
+export type Extinctions = {
+  rabbits?: number;
+  foxes?: number;
+  flowers?: number;
+};
+
 export interface EcosystemState {
   rabbits: RabbitState[];
   foxes: FoxState[];
@@ -121,5 +128,5 @@ export interface EcosystemState {
   weather: WeatherState;
   timeOfDay: number; // 0-1 representing progress through the day cycle (0=dawn, 0.25=noon, 0.5=dusk, 0.75=midnight)
   speed: number; // simulation speed multiplier (0.5, 1, 2, 3)
-  gameOver: boolean; // true when any population reaches 0
+  extinctions: Extinctions; // elapsed time when each species went extinct
 }

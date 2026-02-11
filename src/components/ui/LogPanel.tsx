@@ -63,7 +63,7 @@ export default function LogPanel({ onClose }: LogPanelProps) {
                   if (e.type === 'birth') color = 'text-green-400'
                   if (e.type === 'eaten' || e.type === 'starve_rabbit' || e.type === 'starve_fox' || e.type === 'starve_moose') color = 'text-red-400'
                   if (e.type === 'mate') color = 'text-pink-400'
-                  if (e.type === 'game_over') color = 'text-red-500 font-bold'
+                  if (e.type === 'extinction') color = 'text-red-500 font-bold'
 
                   return (
                     <div key={i} className={`text-[11px] leading-tight ${color}`}>
@@ -83,7 +83,7 @@ export default function LogPanel({ onClose }: LogPanelProps) {
 
           {/* Snapshot table */}
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-            Population Snapshots (every 5s)
+            Population Snapshots (every 30s)
           </h3>
           {snapshots.length === 0 ? (
             <p className="mb-4 text-xs text-white/30">No data yet...</p>
