@@ -66,7 +66,7 @@ export default function Fox({ data }: FoxProps) {
     entityType: 'fox',
     hunger: data.hunger,
     thirst: data.thirst,
-    hungerRate: 0.003,
+    hungerRate: 0.004,
   })
 
   const tempForce = useMemo(() => new Vector3(), [])

@@ -28,7 +28,7 @@ const MATING_PAUSE_DURATION = 2.0
 const BABY_SPEED_MULTIPLIER = 0.6
 const BABY_HUNGER_RATE = 0.025
 const ADULT_HUNGER_RATE = 0.012
-const RABBIT_BREED_THRESHOLD = 0.8
+const RABBIT_BREED_THRESHOLD = 0.7
 
 // Heart shape geometry (created once, shared)
 const heartShape = new THREE.Shape()
@@ -225,7 +225,7 @@ export default function Rabbit({ data }: RabbitProps) {
         if (eatingFlowerIdRef.current) {
           if (pregnantRef.current && hungerRef.current > NEED_THRESHOLD) {
             pregnantRef.current = false
-            const litterSize = 2
+            const litterSize = Math.random() < 0.5 ? 3 : 4
             for (let i = 0; i < litterSize; i++) {
               const babyPos: [number, number, number] = [
                 pos.x + (Math.random() - 0.5) * 2,
@@ -390,7 +390,7 @@ export default function Rabbit({ data }: RabbitProps) {
             targetFlowerIdRef.current = null
             if (pregnantRef.current && hungerRef.current > NEED_THRESHOLD) {
               pregnantRef.current = false
-              const litterSize = 2
+              const litterSize = Math.random() < 0.5 ? 3 : 4
               for (let i = 0; i < litterSize; i++) {
                 const babyPos: [number, number, number] = [
                   pos.x + (Math.random() - 0.5) * 2,
@@ -463,7 +463,7 @@ export default function Rabbit({ data }: RabbitProps) {
             targetFlowerIdRef.current = null
             if (pregnantRef.current) {
               pregnantRef.current = false
-              const litterSize = 2
+              const litterSize = Math.random() < 0.5 ? 3 : 4
               for (let i = 0; i < litterSize; i++) {
                 const babyPos: [number, number, number] = [
                   pos.x + (Math.random() - 0.5) * 2,

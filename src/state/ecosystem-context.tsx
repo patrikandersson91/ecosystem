@@ -280,7 +280,7 @@ function ecosystemReducer(state: EcosystemState, action: EcosystemAction): Ecosy
 // ─── Initial State ──────────────────────────────────────────
 
 const defaultConfig: SimulationConfig = {
-  initialRabbits: 20,
+  initialRabbits: 25,
   initialFoxes: 6,
   initialFlowers: 90,
 }

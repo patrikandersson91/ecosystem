@@ -7,7 +7,7 @@ export default function LandingPage() {
   const dispatch = useEcosystemDispatch()
   const navigate = useNavigate()
 
-  const [rabbits, setRabbits] = useState(15)
+  const [rabbits, setRabbits] = useState(25)
   const [foxes, setFoxes] = useState(5)
   const [flowers, setFlowers] = useState(60)
 
