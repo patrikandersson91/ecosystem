@@ -1,5 +1,5 @@
 import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import type { Group } from 'three';
 import type { FoxState } from '../../types/ecosystem.ts';
@@ -21,6 +21,7 @@ import { resolveTreeCollisions } from '../../utils/tree-collision.ts';
 import { heightCapForce, SNOW_HEIGHT } from '../../utils/terrain-avoidance.ts';
 import { useSteering } from '../../hooks/useSteering.ts';
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
+import { useMovementInput } from '../../hooks/useMovementInput.ts';
 import {
   useEcosystem,
   useEcosystemDispatch,
@@ -46,13 +47,15 @@ const FOX_OBSTACLE_QUERY_RADIUS = 1.4;
 
 export default function Fox({ data }: FoxProps) {
   const groupRef = useRef<Group>(null!);
+  const camera = useThree((threeState) => threeState.camera);
   const flLegRef = useRef<Group>(null!);
   const frLegRef = useRef<Group>(null!);
   const blLegRef = useRef<Group>(null!);
   const brLegRef = useRef<Group>(null!);
   const state = useEcosystem();
   const dispatch = useEcosystemDispatch();
-  const { setFollowTarget } = useFollow();
+  const { followTarget, setFollowTarget } = useFollow();
+  const { getMovementInput } = useMovementInput();
   const { spawnBlood } = useDebug();
 
   const position = useRef(new Vector3(...data.position));
@@ -97,6 +100,10 @@ export default function Fox({ data }: FoxProps) {
 
   const tempForce = useMemo(() => new Vector3(), []);
   const tempTarget = useMemo(() => new Vector3(), []);
+  const tempForward = useMemo(() => new Vector3(), []);
+  const tempRight = useMemo(() => new Vector3(), []);
+  const tempMove = useMemo(() => new Vector3(), []);
+  const upAxis = useMemo(() => new Vector3(0, 1, 0), []);
 
   useFrame((_frameState, rawDelta) => {
     if (state.paused) return;
@@ -116,10 +123,97 @@ export default function Fox({ data }: FoxProps) {
 
     const pos = position.current;
     const vel = velocity.current;
+    const isPlayerControlled =
+      followTarget?.type === 'fox' && followTarget.id === data.id;
     const effectiveAggroRadius =
       AGGRO_RADIUS * getSightMultiplier(state.timeOfDay);
     effectiveSightRef.current = effectiveAggroRadius;
     tempForce.set(0, 0, 0);
+
+    if (isPlayerControlled) {
+      const input = getMovementInput();
+      tempForward.copy(camera.getWorldDirection(tempForward));
+      tempForward.y = 0;
+      if (tempForward.lengthSq() < 0.0001) {
+        tempForward.set(0, 0, 1);
+      } else {
+        tempForward.normalize();
+      }
+      tempRight.crossVectors(tempForward, upAxis).normalize();
+      tempMove
+        .copy(tempForward)
+        .multiplyScalar(input.forward)
+        .addScaledVector(tempRight, input.right);
+
+      if (tempMove.lengthSq() > 1) {
+        tempMove.normalize();
+      }
+
+      const manualMaxSpeed = MAX_SPEED_FOX * (input.sprint ? 1.35 : 1);
+      const steerBlend = 1 - Math.exp(-delta * 10);
+      if (input.hasInput) {
+        vel.lerp(tempMove.multiplyScalar(manualMaxSpeed), steerBlend);
+      } else {
+        vel.multiplyScalar(Math.exp(-delta * 8));
+      }
+
+      const [snowFx, snowFz] = heightCapForce(pos.x, pos.z, SNOW_HEIGHT, 5, 15);
+      vel.x += snowFx * delta;
+      vel.z += snowFz * delta;
+
+      pos.addScaledVector(vel, delta);
+      resolveTreeCollisions(pos, vel, 0.55);
+
+      const bound = WORLD_SIZE * 0.95;
+      if (pos.x < -bound || pos.x > bound) {
+        vel.x *= -1;
+        pos.x = Math.max(-bound, Math.min(bound, pos.x));
+      }
+      if (pos.z < -bound || pos.z > bound) {
+        vel.z *= -1;
+        pos.z = Math.max(-bound, Math.min(bound, pos.z));
+      }
+
+      const terrainY = groundHeightAt(pos.x, pos.z);
+      const depth = waterDepthAt(pos.x, pos.z);
+      const sinkY = depth > 0 ? -depth * 0.85 : 0;
+      groupRef.current.position.set(pos.x, terrainY + 0.5 + sinkY, pos.z);
+
+      const speed = vel.length();
+      if (speed > 0.08) {
+        groupRef.current.rotation.y = Math.atan2(vel.x, vel.z);
+        groupRef.current.rotation.x = Math.min(speed / MAX_SPEED_FOX, 1) * 0.15;
+        const t = state.time * 30;
+        const legAngle = Math.sin(t) * 0.6;
+        if (flLegRef.current) flLegRef.current.rotation.x = legAngle;
+        if (brLegRef.current) brLegRef.current.rotation.x = legAngle;
+        if (frLegRef.current) frLegRef.current.rotation.x = -legAngle;
+        if (blLegRef.current) blLegRef.current.rotation.x = -legAngle;
+      } else {
+        groupRef.current.rotation.x = 0;
+        if (flLegRef.current) flLegRef.current.rotation.x = 0;
+        if (brLegRef.current) brLegRef.current.rotation.x = 0;
+        if (frLegRef.current) frLegRef.current.rotation.x = 0;
+        if (blLegRef.current) blLegRef.current.rotation.x = 0;
+      }
+
+      intentionRef.current = input.hasInput ? 'Player control' : 'Standing by';
+      intentionTargetRef.current = null;
+      matingPauseRef.current = 0;
+
+      syncTimer.current += delta;
+      if (syncTimer.current > 0.2) {
+        syncTimer.current = 0;
+        dispatch({
+          type: 'UPDATE_ENTITY_POSITION',
+          id: data.id,
+          entityType: 'fox',
+          position: [pos.x, 0.5, pos.z],
+          velocity: [vel.x, vel.y, vel.z],
+        });
+      }
+      return;
+    }
 
     // ── MATING PAUSE: stand still briefly ──
     if (matingPauseRef.current > 0) {

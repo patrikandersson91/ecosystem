@@ -140,6 +140,7 @@ export default function HUD() {
         <div className="pointer-events-auto absolute right-0 top-0 m-3 inline-flex flex-col gap-2 rounded-xl bg-black/45 p-3 backdrop-blur-md">
           <div className="text-xs text-white/60">Following</div>
           <div className="text-sm font-semibold text-cyan-200">{followedLabel}</div>
+          <div className="text-xs text-white/70">Move with WASD or arrow keys</div>
           <button
             onClick={stopFollowing}
             className="cursor-pointer rounded bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20"
