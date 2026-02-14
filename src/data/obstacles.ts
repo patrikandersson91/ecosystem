@@ -111,8 +111,9 @@ function generateRandomGroves(
   existing: [number, number, number][],
   minDist: number,
   rng: () => number,
-): [number, number, number][] {
+): { flat: [number, number, number][]; groves: [number, number, number][][] } {
   const allPts: [number, number, number][] = []
+  const groves: [number, number, number][][] = []
   let currentExisting = [...existing]
 
   for (let i = 0; i < numGroves; i++) {
@@ -132,10 +133,11 @@ function generateRandomGroves(
       rng
     )
 
+    groves.push(grovePts)
     allPts.push(...grovePts)
     currentExisting = [...currentExisting, ...grovePts]
   }
-  return allPts
+  return { flat: allPts, groves }
 }
 
 // Use seeded RNG so positions are stable across renders and components
@@ -185,7 +187,7 @@ export const CORNER_FOREST_TREE_POSITIONS = generateCornerForestPositions(
 )
 
 // Generate 12 random groves with ~15 trees each
-export const RANDOM_GROVE_POSITIONS = generateRandomGroves(
+const RANDOM_GROVE_RESULT = generateRandomGroves(
   12,
   Math.floor(15 * DENSITY_SCALE),
   WORLD_SIZE * 0.08,
@@ -199,6 +201,9 @@ export const RANDOM_GROVE_POSITIONS = generateRandomGroves(
   2.0,
   rng
 )
+export const RANDOM_GROVE_POSITIONS = RANDOM_GROVE_RESULT.flat
+/** Each sub-array is one grove – trees within a grove share the same type */
+export const RANDOM_GROVES = RANDOM_GROVE_RESULT.groves
 
 const ALL_TREES = [
   ...TREE_POSITIONS,
