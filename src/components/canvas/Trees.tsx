@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import { Object3D, InstancedMesh } from 'three';
+import { Object3D, InstancedMesh, ShaderMaterial } from 'three';
+import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
 import {
   CORNER_FOREST_TREE_POSITIONS,
   DENSE_FOREST_TREE_POSITIONS,
@@ -88,8 +89,14 @@ export default function Trees() {
         <meshStandardMaterial color="#2d6b1e" />
       </instancedMesh>
       <instancedMesh ref={shadowMeshRef} args={[undefined, undefined, count]}>
-        <circleGeometry args={[1.4, 12]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.18} />
+        <circleGeometry args={[1.8, 16]} />
+        <shaderMaterial
+          transparent
+          depthWrite={false}
+          vertexShader={softShadowVert}
+          fragmentShader={softShadowFrag}
+          uniforms={{ uOpacity: { value: 0.28 } }}
+        />
       </instancedMesh>
     </group>
   );

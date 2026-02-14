@@ -65,7 +65,7 @@ export default function Grass() {
   }, [colors, matrices])
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, matrices.length]} castShadow receiveShadow>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, matrices.length]} receiveShadow>
       <coneGeometry args={[0.2, 1, 4]} />
       <meshStandardMaterial vertexColors roughness={1} metalness={0} />
     </instancedMesh>

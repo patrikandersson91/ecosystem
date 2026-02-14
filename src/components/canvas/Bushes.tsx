@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useMemo } from 'react';
 import { Object3D, InstancedMesh, SphereGeometry, CircleGeometry } from 'three';
+import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
 import { BUSH_POSITIONS } from '../../data/obstacles.ts';
 import { groundHeightAt } from '../../utils/terrain-height.ts';
 
@@ -26,7 +27,7 @@ export default function Bushes() {
     const g3 = new SphereGeometry(0.38, 6, 5);
     g3.translate(-0.2, 0.28, -0.18);
 
-    const gs = new CircleGeometry(0.7, 10);
+    const gs = new CircleGeometry(0.9, 14);
     gs.rotateX(-Math.PI / 2);
     gs.translate(0, 0.02, 0);
 
@@ -97,13 +98,19 @@ export default function Bushes() {
         <meshStandardMaterial color="#358a22" roughness={0.9} />
       </instancedMesh>
 
-      {/* Shadow blob on ground */}
+      {/* Soft ground shadow */}
       <instancedMesh
         ref={shadowRef}
         args={[undefined, undefined, count]}
         geometry={geoShadow}
       >
-        <meshBasicMaterial color="#000000" transparent opacity={0.15} />
+        <shaderMaterial
+          transparent
+          depthWrite={false}
+          vertexShader={softShadowVert}
+          fragmentShader={softShadowFrag}
+          uniforms={{ uOpacity: { value: 0.22 } }}
+        />
       </instancedMesh>
     </group>
   );

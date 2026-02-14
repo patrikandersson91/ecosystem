@@ -445,6 +445,9 @@ function ecosystemReducer(
         },
       };
 
+    case 'SET_WEATHER_LOCK':
+      return { ...state, weatherLocked: action.locked };
+
     case 'SET_TIME_OF_DAY':
       return { ...state, timeOfDay: action.timeOfDay };
 
@@ -481,6 +484,7 @@ const initialState: EcosystemState = {
   timeOfDay: 0.15,
   speed: 1,
   extinctions: {},
+  weatherLocked: false,
 };
 
 export type EcosystemUIState = {
@@ -489,6 +493,7 @@ export type EcosystemUIState = {
   paused: boolean;
   speed: number;
   weatherType: EcosystemState['weather']['type'];
+  weatherLocked: boolean;
   config: SimulationConfig;
   rabbits: number;
   rabbitAdults: number;
@@ -511,6 +516,7 @@ function buildEcosystemUIState(state: EcosystemState): EcosystemUIState {
     paused: state.paused,
     speed: state.speed,
     weatherType: state.weather.type,
+    weatherLocked: state.weatherLocked,
     config: state.config,
     rabbits: state.rabbits.length,
     rabbitAdults,
@@ -534,6 +540,7 @@ function isSameEcosystemUIState(
     a.paused === b.paused &&
     a.speed === b.speed &&
     a.weatherType === b.weatherType &&
+    a.weatherLocked === b.weatherLocked &&
     a.config === b.config &&
     a.rabbits === b.rabbits &&
     a.rabbitAdults === b.rabbitAdults &&

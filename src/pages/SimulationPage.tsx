@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { NoToneMapping } from 'three'
+import { PCFSoftShadowMap } from 'three'
 import EcosystemScene from '../components/canvas/EcosystemScene.tsx'
 import HUD from '../components/ui/HUD.tsx'
 import Timeline from '../components/ui/Timeline.tsx'
@@ -27,7 +27,7 @@ export default function SimulationPage() {
         <div style={{ position: 'fixed', inset: 0 }}>
           <Canvas
             camera={{ position: [0, WORLD_SIZE * 0.6, WORLD_SIZE * 0.8], fov: 60, near: 0.1, far: WORLD_SIZE * 12 }}
-            shadows
+            shadows={{ type: PCFSoftShadowMap }}
             dpr={[1, 1.5]}
             style={{ width: '100%', height: '100%' }}
           >

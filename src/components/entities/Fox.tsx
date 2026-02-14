@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import type { Group } from 'three';
+import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
 import type { FoxState } from '../../types/ecosystem.ts';
 import {
   AGGRO_RADIUS,
@@ -47,6 +48,7 @@ const FOX_OBSTACLE_QUERY_RADIUS = 1.4;
 
 export default function Fox({ data }: FoxProps) {
   const groupRef = useRef<Group>(null!);
+  const tailRef = useRef<Group>(null!);
   const camera = useThree((threeState) => threeState.camera);
   const flLegRef = useRef<Group>(null!);
   const frLegRef = useRef<Group>(null!);
@@ -189,12 +191,14 @@ export default function Fox({ data }: FoxProps) {
         if (brLegRef.current) brLegRef.current.rotation.x = legAngle;
         if (frLegRef.current) frLegRef.current.rotation.x = -legAngle;
         if (blLegRef.current) blLegRef.current.rotation.x = -legAngle;
+        if (tailRef.current) tailRef.current.rotation.y = Math.sin(state.time * 8) * 0.3;
       } else {
         groupRef.current.rotation.x = 0;
         if (flLegRef.current) flLegRef.current.rotation.x = 0;
         if (brLegRef.current) brLegRef.current.rotation.x = 0;
         if (frLegRef.current) frLegRef.current.rotation.x = 0;
         if (blLegRef.current) blLegRef.current.rotation.x = 0;
+        if (tailRef.current) tailRef.current.rotation.y = Math.sin(state.time * 3) * 0.15;
       }
 
       intentionRef.current = input.hasInput ? 'Player control' : 'Standing by';
@@ -453,6 +457,7 @@ export default function Fox({ data }: FoxProps) {
       if (brLegRef.current) brLegRef.current.rotation.x = legAngle;
       if (frLegRef.current) frLegRef.current.rotation.x = -legAngle;
       if (blLegRef.current) blLegRef.current.rotation.x = -legAngle;
+      if (tailRef.current) tailRef.current.rotation.y = Math.sin(state.time * 8) * 0.3;
     } else {
       groupRef.current.rotation.x = 0;
 
@@ -461,6 +466,7 @@ export default function Fox({ data }: FoxProps) {
       if (brLegRef.current) brLegRef.current.rotation.x = 0;
       if (frLegRef.current) frLegRef.current.rotation.x = 0;
       if (blLegRef.current) blLegRef.current.rotation.x = 0;
+      if (tailRef.current) tailRef.current.rotation.y = Math.sin(state.time * 3) * 0.15;
     }
 
     // Periodic state sync
@@ -493,119 +499,150 @@ export default function Fox({ data }: FoxProps) {
         ]}
       >
         <group scale={data.isAdult ? [1.6, 1.6, 1.6] : [1.0, 1.0, 1.0]}>
-          {/* Body */}
-          <mesh castShadow>
-            <boxGeometry args={[0.35, 0.32, 0.7]} />
-            <meshStandardMaterial color="#c0561a" />
+          {/* Body - sleek torso */}
+          <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
+            <capsuleGeometry args={[0.15, 0.36, 6, 8]} />
+            <meshStandardMaterial color="#c85a1c" />
           </mesh>
-          {/* Chest / belly lighter patch */}
-          <mesh position={[0, -0.1, 0.15]}>
-            <boxGeometry args={[0.28, 0.12, 0.4]} />
-            <meshStandardMaterial color="#e8a060" />
+          {/* Chest / underbelly - cream */}
+          <mesh position={[0, -0.07, 0.1]} scale={[0.85, 0.6, 1]}>
+            <sphereGeometry args={[0.14, 8, 8]} />
+            <meshStandardMaterial color="#f0c890" />
           </mesh>
           {/* Head */}
-          <mesh position={[0, 0.12, 0.45]} castShadow>
-            <boxGeometry args={[0.3, 0.26, 0.32]} />
-            <meshStandardMaterial color="#d4741a" />
+          <mesh castShadow position={[0, 0.1, 0.42]}>
+            <sphereGeometry args={[0.14, 10, 10]} />
+            <meshStandardMaterial color="#d06820" />
           </mesh>
-          {/* Snout */}
-          <mesh position={[0, 0.06, 0.68]}>
-            <boxGeometry args={[0.14, 0.12, 0.18]} />
-            <meshStandardMaterial color="#e8a060" />
+          {/* Cheek ruff - left */}
+          <mesh position={[-0.08, 0.04, 0.46]}>
+            <sphereGeometry args={[0.06, 6, 6]} />
+            <meshStandardMaterial color="#f0c890" />
+          </mesh>
+          {/* Cheek ruff - right */}
+          <mesh position={[0.08, 0.04, 0.46]}>
+            <sphereGeometry args={[0.06, 6, 6]} />
+            <meshStandardMaterial color="#f0c890" />
+          </mesh>
+          {/* Snout - rounded */}
+          <mesh position={[0, 0.04, 0.56]} rotation={[Math.PI / 2, 0, 0]} scale={[0.8, 1, 0.7]}>
+            <capsuleGeometry args={[0.06, 0.14, 5, 8]} />
+            <meshStandardMaterial color="#e0a060" />
           </mesh>
           {/* Nose */}
-          <mesh position={[0, 0.08, 0.78]}>
-            <sphereGeometry args={[0.03, 8, 8]} />
+          <mesh position={[0, 0.06, 0.65]}>
+            <sphereGeometry args={[0.025, 6, 6]} />
             <meshStandardMaterial color="#1a1a1a" />
           </mesh>
           {/* Left eye */}
-          <mesh position={[-0.1, 0.18, 0.6]}>
-            <sphereGeometry args={[0.035, 8, 8]} />
-            <meshStandardMaterial color="#2a1a00" />
+          <mesh position={[-0.09, 0.16, 0.52]}>
+            <sphereGeometry args={[0.03, 8, 8]} />
+            <meshStandardMaterial color="#1a1000" />
           </mesh>
           {/* Right eye */}
-          <mesh position={[0.1, 0.18, 0.6]}>
-            <sphereGeometry args={[0.035, 8, 8]} />
-            <meshStandardMaterial color="#2a1a00" />
+          <mesh position={[0.09, 0.16, 0.52]}>
+            <sphereGeometry args={[0.03, 8, 8]} />
+            <meshStandardMaterial color="#1a1000" />
           </mesh>
-          {/* Left ear */}
-          <mesh position={[-0.1, 0.35, 0.4]} rotation={[0.2, 0, -0.3]}>
-            <coneGeometry args={[0.07, 0.2, 4]} />
-            <meshStandardMaterial color="#c0561a" />
+          {/* Left ear outer */}
+          <mesh position={[-0.09, 0.32, 0.38]} rotation={[0.15, 0, -0.2]}>
+            <capsuleGeometry args={[0.04, 0.12, 4, 6]} />
+            <meshStandardMaterial color="#c85a1c" />
           </mesh>
           {/* Left ear inner */}
-          <mesh position={[-0.1, 0.34, 0.41]} rotation={[0.2, 0, -0.3]}>
-            <coneGeometry args={[0.04, 0.14, 4]} />
+          <mesh position={[-0.087, 0.31, 0.385]} rotation={[0.15, 0, -0.2]}>
+            <capsuleGeometry args={[0.025, 0.08, 4, 5]} />
             <meshStandardMaterial color="#e8a060" />
           </mesh>
-          {/* Right ear */}
-          <mesh position={[0.1, 0.35, 0.4]} rotation={[0.2, 0, 0.3]}>
-            <coneGeometry args={[0.07, 0.2, 4]} />
-            <meshStandardMaterial color="#c0561a" />
+          {/* Right ear outer */}
+          <mesh position={[0.09, 0.32, 0.38]} rotation={[0.15, 0, 0.2]}>
+            <capsuleGeometry args={[0.04, 0.12, 4, 6]} />
+            <meshStandardMaterial color="#c85a1c" />
           </mesh>
           {/* Right ear inner */}
-          <mesh position={[0.1, 0.34, 0.41]} rotation={[0.2, 0, 0.3]}>
-            <coneGeometry args={[0.04, 0.14, 4]} />
+          <mesh position={[0.087, 0.31, 0.385]} rotation={[0.15, 0, 0.2]}>
+            <capsuleGeometry args={[0.025, 0.08, 4, 5]} />
             <meshStandardMaterial color="#e8a060" />
           </mesh>
-          {/* Front Left Leg Group */}
-          <group ref={flLegRef} position={[-0.12, -0.12, 0.2]}>
-            <mesh position={[0, -0.1, 0]} castShadow>
-              <boxGeometry args={[0.08, 0.2, 0.08]} />
+          {/* Front Left Leg */}
+          <group ref={flLegRef} position={[-0.1, -0.1, 0.18]}>
+            <mesh position={[0, -0.09, 0]} castShadow>
+              <boxGeometry args={[0.06, 0.18, 0.06]} />
               <meshStandardMaterial color="#a04510" />
             </mesh>
-            <mesh position={[0, -0.2, 0]}>
-              <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <mesh position={[0, -0.19, 0]}>
+              <boxGeometry args={[0.065, 0.04, 0.065]} />
               <meshStandardMaterial color="#1a1a1a" />
             </mesh>
           </group>
-
-          {/* Front Right Leg Group */}
-          <group ref={frLegRef} position={[0.12, -0.12, 0.2]}>
-            <mesh position={[0, -0.1, 0]} castShadow>
-              <boxGeometry args={[0.08, 0.2, 0.08]} />
+          {/* Front Right Leg */}
+          <group ref={frLegRef} position={[0.1, -0.1, 0.18]}>
+            <mesh position={[0, -0.09, 0]} castShadow>
+              <boxGeometry args={[0.06, 0.18, 0.06]} />
               <meshStandardMaterial color="#a04510" />
             </mesh>
-            <mesh position={[0, -0.2, 0]}>
-              <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <mesh position={[0, -0.19, 0]}>
+              <boxGeometry args={[0.065, 0.04, 0.065]} />
               <meshStandardMaterial color="#1a1a1a" />
             </mesh>
           </group>
-
-          {/* Back Left Leg Group */}
-          <group ref={blLegRef} position={[-0.12, -0.12, -0.22]}>
-            <mesh position={[0, -0.1, 0]} castShadow>
-              <boxGeometry args={[0.08, 0.2, 0.08]} />
+          {/* Back Left Leg */}
+          <group ref={blLegRef} position={[-0.1, -0.1, -0.2]}>
+            <mesh position={[0, -0.09, 0]} castShadow>
+              <boxGeometry args={[0.06, 0.18, 0.06]} />
               <meshStandardMaterial color="#a04510" />
             </mesh>
-            <mesh position={[0, -0.2, 0]}>
-              <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <mesh position={[0, -0.19, 0]}>
+              <boxGeometry args={[0.065, 0.04, 0.065]} />
               <meshStandardMaterial color="#1a1a1a" />
             </mesh>
           </group>
-
-          {/* Back Right Leg Group */}
-          <group ref={brLegRef} position={[0.12, -0.12, -0.22]}>
-            <mesh position={[0, -0.1, 0]} castShadow>
-              <boxGeometry args={[0.08, 0.2, 0.08]} />
+          {/* Back Right Leg */}
+          <group ref={brLegRef} position={[0.1, -0.1, -0.2]}>
+            <mesh position={[0, -0.09, 0]} castShadow>
+              <boxGeometry args={[0.06, 0.18, 0.06]} />
               <meshStandardMaterial color="#a04510" />
             </mesh>
-            <mesh position={[0, -0.2, 0]}>
-              <boxGeometry args={[0.09, 0.04, 0.09]} />
+            <mesh position={[0, -0.19, 0]}>
+              <boxGeometry args={[0.065, 0.04, 0.065]} />
               <meshStandardMaterial color="#1a1a1a" />
             </mesh>
           </group>
-          {/* Tail - bushy */}
-          <mesh position={[0, 0.12, -0.55]} rotation={[0.6, 0, 0]} castShadow>
-            <capsuleGeometry args={[0.06, 0.35, 6, 6]} />
-            <meshStandardMaterial color="#c0561a" />
-          </mesh>
-          {/* Tail tip (white) */}
-          <mesh position={[0, 0.28, -0.7]} rotation={[0.8, 0, 0]}>
-            <sphereGeometry args={[0.07, 8, 8]} />
-            <meshStandardMaterial color="#f0e0d0" />
-          </mesh>
+          {/* Tail group - animated wiggle */}
+          <group ref={tailRef} position={[0, 0.05, -0.26]}>
+            {/* Base - thick root, dark */}
+            <mesh position={[0, 0.02, 0]} castShadow>
+              <sphereGeometry args={[0.08, 8, 8]} />
+              <meshStandardMaterial color="#a04818" />
+            </mesh>
+            {/* Mid - bushiest section, rich orange */}
+            <mesh position={[0, 0, -0.12]} castShadow scale={[1.15, 0.85, 1.1]}>
+              <sphereGeometry args={[0.1, 8, 8]} />
+              <meshStandardMaterial color="#c85a1c" />
+            </mesh>
+            {/* Taper - lighter orange */}
+            <mesh position={[0, -0.02, -0.22]} scale={[1, 0.85, 1]}>
+              <sphereGeometry args={[0.08, 8, 8]} />
+              <meshStandardMaterial color="#d88030" />
+            </mesh>
+            {/* Tip - white */}
+            <mesh position={[0, -0.04, -0.3]}>
+              <sphereGeometry args={[0.06, 8, 8]} />
+              <meshStandardMaterial color="#f5f0e8" />
+            </mesh>
+          </group>
         </group>
+        {/* Soft contact shadow on ground */}
+        <mesh position={[0, -data.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.8, 16]} />
+          <shaderMaterial
+            transparent
+            depthWrite={false}
+            vertexShader={softShadowVert}
+            fragmentShader={softShadowFrag}
+            uniforms={{ uOpacity: { value: 0.3 } }}
+          />
+        </mesh>
         <StatusBar hungerRef={hungerRef} thirstRef={thirstRef} yOffset={1.2} />
       </group>
       <IntentionOverlay

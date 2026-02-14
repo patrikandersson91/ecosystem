@@ -6,6 +6,7 @@ import {
   CircleGeometry,
   Color,
 } from 'three';
+import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
 import { STONE_POSITIONS } from '../../data/obstacles.ts';
 import { groundHeightAt } from '../../utils/terrain-height.ts';
 
@@ -29,7 +30,7 @@ export default function Stones() {
     g2.scale(1, 0.55, 0.9);
     g2.translate(0.3, 0.1, 0.15);
 
-    const gs = new CircleGeometry(0.45, 8);
+    const gs = new CircleGeometry(0.55, 12);
     gs.rotateX(-Math.PI / 2);
     gs.translate(0, 0.02, 0);
 
@@ -109,13 +110,19 @@ export default function Stones() {
         <meshStandardMaterial roughness={1} metalness={0.05} />
       </instancedMesh>
 
-      {/* Shadow blob on ground */}
+      {/* Soft ground shadow */}
       <instancedMesh
         ref={shadowRef}
         args={[undefined, undefined, count]}
         geometry={geoShadow}
       >
-        <meshBasicMaterial color="#000000" transparent opacity={0.15} />
+        <shaderMaterial
+          transparent
+          depthWrite={false}
+          vertexShader={softShadowVert}
+          fragmentShader={softShadowFrag}
+          uniforms={{ uOpacity: { value: 0.2 } }}
+        />
       </instancedMesh>
     </group>
   );

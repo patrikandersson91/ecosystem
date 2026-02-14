@@ -24,6 +24,7 @@ export type EcosystemAction =
   | { type: 'FOX_PREGNANCY_MEAL'; id: string; mealsWhilePregnant: number; pregnant: boolean }
   | { type: 'FOX_GROW_UP'; id: string }
   | { type: 'SET_WEATHER'; weather: WeatherType; intensity: number; nextChangeAt: number }
+  | { type: 'SET_WEATHER_LOCK'; locked: boolean }
   | { type: 'SET_TIME_OF_DAY'; timeOfDay: number }
   | { type: 'SET_SPEED'; speed: number }
   | { type: 'RECORD_EXTINCTION'; species: 'rabbits' | 'foxes' | 'flowers'; time: number }

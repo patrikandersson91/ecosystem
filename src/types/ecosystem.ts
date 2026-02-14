@@ -21,8 +21,8 @@ export const MAX_FOXES = 16;
 export const HUNGER_RATE = 0.02;
 export const THIRST_RATE = 0.01;
 export const NEED_THRESHOLD = 0.3;
-export const JUMP_HEIGHT = 0.6;
-export const JUMP_FREQUENCY = 3;
+export const JUMP_HEIGHT = 0.25;
+export const JUMP_FREQUENCY = 2.2;
 export const MATE_RADIUS = 15;
 export const MATING_COOLDOWN = 6;
 export const FOX_MATE_RADIUS = 12;
@@ -131,4 +131,5 @@ export interface EcosystemState {
   timeOfDay: number; // 0-1 representing progress through the day cycle (0=dawn, 0.25=noon, 0.5=dusk, 0.75=midnight)
   speed: number; // simulation speed multiplier (0.5, 1, 2, 3)
   extinctions: Extinctions; // elapsed time when each species went extinct
+  weatherLocked: boolean; // when true, automatic weather changes are disabled
 }

@@ -309,48 +309,48 @@ export default function Flowers() {
 
   return (
     <group>
-       <instancedMesh ref={stemsRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoStem}>
+       <instancedMesh ref={stemsRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoStem}>
          <meshStandardMaterial />
        </instancedMesh>
-       <instancedMesh ref={leavesRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoLeaf}>
-         <meshStandardMaterial />
-       </instancedMesh>
-       
-       <instancedMesh ref={daisyPetalsRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoDaisyPetals}>
-         <meshStandardMaterial />
-       </instancedMesh>
-       <instancedMesh ref={daisyCenterRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoDaisyCenter}>
+       <instancedMesh ref={leavesRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoLeaf}>
          <meshStandardMaterial />
        </instancedMesh>
 
-       <instancedMesh ref={tulipPetalsRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoTulipPetals}>
+       <instancedMesh ref={daisyPetalsRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoDaisyPetals}>
+         <meshStandardMaterial />
+       </instancedMesh>
+       <instancedMesh ref={daisyCenterRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoDaisyCenter}>
+         <meshStandardMaterial />
+       </instancedMesh>
+
+       <instancedMesh ref={tulipPetalsRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoTulipPetals}>
          <meshStandardMaterial side={DoubleSide} />
        </instancedMesh>
-       <instancedMesh ref={tulipCenterRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoTulipCenter}>
+       <instancedMesh ref={tulipCenterRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoTulipCenter}>
          <meshStandardMaterial />
        </instancedMesh>
 
-       <instancedMesh ref={bellBodyRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoBellBody}>
+       <instancedMesh ref={bellBodyRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoBellBody}>
          <meshStandardMaterial />
        </instancedMesh>
-       <instancedMesh ref={bellCenterRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoBellCenter}>
+       <instancedMesh ref={bellCenterRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoBellCenter}>
          <meshStandardMaterial />
        </instancedMesh>
-       <instancedMesh ref={bellBallsRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoBellBalls}>
+       <instancedMesh ref={bellBallsRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoBellBalls}>
          <meshStandardMaterial />
        </instancedMesh>
 
        <instancedMesh ref={bush1FoliageRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoBush1Foliage}>
          <meshStandardMaterial />
        </instancedMesh>
-       <instancedMesh ref={bush1FlowerRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoBush1Flowers}>
+       <instancedMesh ref={bush1FlowerRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoBush1Flowers}>
          <meshStandardMaterial />
        </instancedMesh>
 
        <instancedMesh ref={bush2FoliageRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoBush2Foliage}>
          <meshStandardMaterial />
        </instancedMesh>
-       <instancedMesh ref={bush2FlowerRef} args={[undefined, undefined, MAX_FLOWERS]} castShadow receiveShadow geometry={geoBush2Flowers}>
+       <instancedMesh ref={bush2FlowerRef} args={[undefined, undefined, MAX_FLOWERS]} receiveShadow geometry={geoBush2Flowers}>
          <meshStandardMaterial />
        </instancedMesh>
     </group>

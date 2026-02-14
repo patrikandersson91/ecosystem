@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Group, Mesh } from 'three';
+import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
 import type { RabbitState } from '../../types/ecosystem.ts';
 import {
   FLEE_RADIUS,
@@ -62,6 +63,10 @@ interface RabbitProps {
 
 export default function Rabbit({ data }: RabbitProps) {
   const groupRef = useRef<Group>(null!);
+  const flLegRef = useRef<Group>(null!);
+  const frLegRef = useRef<Group>(null!);
+  const blLegRef = useRef<Group>(null!);
+  const brLegRef = useRef<Group>(null!);
   const camera = useThree((threeState) => threeState.camera);
   const state = useEcosystem();
   const dispatch = useEcosystemDispatch();
@@ -215,7 +220,7 @@ export default function Rabbit({ data }: RabbitProps) {
       const speedFactor = Math.min(speed / MAX_SPEED_RABBIT, 1);
       jumpPhase.current += JUMP_FREQUENCY * Math.PI * 2 * delta * speedFactor;
       const hopY =
-        Math.abs(Math.sin(jumpPhase.current)) * JUMP_HEIGHT * speedFactor;
+        Math.max(0, Math.sin(jumpPhase.current)) * JUMP_HEIGHT * speedFactor;
 
       const terrainY = groundHeightAt(pos.x, pos.z);
       const depth = waterDepthAt(pos.x, pos.z);
@@ -223,6 +228,16 @@ export default function Rabbit({ data }: RabbitProps) {
       groupRef.current.position.set(pos.x, terrainY + hopY + sinkY, pos.z);
       if (speed > 0.08) {
         groupRef.current.rotation.y = Math.atan2(vel.x, vel.z);
+        const hopCycle = Math.sin(jumpPhase.current);
+        if (flLegRef.current) flLegRef.current.rotation.x = hopCycle * 0.5 * speedFactor;
+        if (frLegRef.current) frLegRef.current.rotation.x = hopCycle * 0.5 * speedFactor;
+        if (blLegRef.current) blLegRef.current.rotation.x = -hopCycle * 0.7 * speedFactor;
+        if (brLegRef.current) brLegRef.current.rotation.x = -hopCycle * 0.7 * speedFactor;
+      } else {
+        if (flLegRef.current) flLegRef.current.rotation.x = 0;
+        if (frLegRef.current) frLegRef.current.rotation.x = 0;
+        if (blLegRef.current) blLegRef.current.rotation.x = 0;
+        if (brLegRef.current) brLegRef.current.rotation.x = 0;
       }
 
       intentionRef.current = input.hasInput ? 'Player control' : 'Standing by';
@@ -253,6 +268,10 @@ export default function Rabbit({ data }: RabbitProps) {
 
       // Zero velocity — stand still
       vel.set(0, 0, 0);
+      if (flLegRef.current) flLegRef.current.rotation.x = 0;
+      if (frLegRef.current) frLegRef.current.rotation.x = 0;
+      if (blLegRef.current) blLegRef.current.rotation.x = 0;
+      if (brLegRef.current) brLegRef.current.rotation.x = 0;
       intentionRef.current = 'Mating';
       intentionTargetRef.current = null;
 
@@ -311,6 +330,10 @@ export default function Rabbit({ data }: RabbitProps) {
       drinkingTimerRef.current -= delta;
       thirstRef.current = Math.min(1, thirstRef.current + delta / 3);
       vel.set(0, 0, 0);
+      if (flLegRef.current) flLegRef.current.rotation.x = 0;
+      if (frLegRef.current) frLegRef.current.rotation.x = 0;
+      if (blLegRef.current) blLegRef.current.rotation.x = 0;
+      if (brLegRef.current) brLegRef.current.rotation.x = 0;
       intentionRef.current = 'Drinking';
       intentionTargetRef.current = null;
       if (thirstRef.current >= 1 || drinkingTimerRef.current <= 0) {
@@ -338,6 +361,10 @@ export default function Rabbit({ data }: RabbitProps) {
     if (eatingTimerRef.current > 0) {
       eatingTimerRef.current -= delta;
       vel.set(0, 0, 0);
+      if (flLegRef.current) flLegRef.current.rotation.x = 0;
+      if (frLegRef.current) frLegRef.current.rotation.x = 0;
+      if (blLegRef.current) blLegRef.current.rotation.x = 0;
+      if (brLegRef.current) brLegRef.current.rotation.x = 0;
       intentionRef.current = 'Eating';
       intentionTargetRef.current = null;
       if (eatingTimerRef.current <= 0) {
@@ -695,6 +722,16 @@ export default function Rabbit({ data }: RabbitProps) {
 
     if (speed > 0.1) {
       groupRef.current.rotation.y = Math.atan2(vel.x, vel.z);
+      const hopCycle = Math.sin(jumpPhase.current);
+      if (flLegRef.current) flLegRef.current.rotation.x = hopCycle * 0.5 * speedFactor;
+      if (frLegRef.current) frLegRef.current.rotation.x = hopCycle * 0.5 * speedFactor;
+      if (blLegRef.current) blLegRef.current.rotation.x = -hopCycle * 0.7 * speedFactor;
+      if (brLegRef.current) brLegRef.current.rotation.x = -hopCycle * 0.7 * speedFactor;
+    } else {
+      if (flLegRef.current) flLegRef.current.rotation.x = 0;
+      if (frLegRef.current) frLegRef.current.rotation.x = 0;
+      if (blLegRef.current) blLegRef.current.rotation.x = 0;
+      if (brLegRef.current) brLegRef.current.rotation.x = 0;
     }
 
     // Periodic state sync
@@ -730,36 +767,135 @@ export default function Rabbit({ data }: RabbitProps) {
         ]}
       >
         <group scale={visualScale}>
-          {/* Body */}
-          <mesh castShadow>
-            <sphereGeometry args={[0.3, 8, 8]} />
-            <meshStandardMaterial
-              color={data.pregnant ? '#e8a0c0' : '#d4a574'}
-            />
+          {/* Body - elongated oval torso */}
+          <mesh castShadow position={[0, 0.2, -0.02]} scale={[1, 0.9, 1.15]}>
+            <sphereGeometry args={[0.22, 10, 10]} />
+            <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+          </mesh>
+          {/* Rump - round backside */}
+          <mesh castShadow position={[0, 0.24, -0.14]}>
+            <sphereGeometry args={[0.17, 8, 8]} />
+            <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+          </mesh>
+          {/* Belly - lighter underside */}
+          <mesh position={[0, 0.12, 0.02]}>
+            <boxGeometry args={[0.18, 0.07, 0.28]} />
+            <meshStandardMaterial color="#dcc8a8" />
           </mesh>
           {/* Head */}
-          <mesh position={[0, 0.25, 0.2]} castShadow>
-            <sphereGeometry args={[0.18, 8, 8]} />
-            <meshStandardMaterial
-              color={data.pregnant ? '#e8a0c0' : '#d4a574'}
-            />
+          <mesh castShadow position={[0, 0.32, 0.26]}>
+            <sphereGeometry args={[0.14, 10, 10]} />
+            <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
           </mesh>
-          {/* Left ear */}
-          <mesh position={[-0.08, 0.5, 0.18]} rotation={[0.3, 0, -0.15]}>
-            <capsuleGeometry args={[0.03, 0.2, 4, 4]} />
-            <meshStandardMaterial color="#c49466" />
+          {/* Muzzle - wider, softer */}
+          <mesh position={[0, 0.26, 0.36]} scale={[1.3, 0.85, 1]}>
+            <sphereGeometry args={[0.065, 8, 8]} />
+            <meshStandardMaterial color="#dcc8a8" />
           </mesh>
-          {/* Right ear */}
-          <mesh position={[0.08, 0.5, 0.18]} rotation={[0.3, 0, 0.15]}>
-            <capsuleGeometry args={[0.03, 0.2, 4, 4]} />
-            <meshStandardMaterial color="#c49466" />
+          {/* Nose */}
+          <mesh position={[0, 0.29, 0.40]}>
+            <sphereGeometry args={[0.018, 6, 6]} />
+            <meshStandardMaterial color="#e88a93" />
           </mesh>
-          {/* Tail */}
-          <mesh position={[0, 0.1, -0.3]}>
-            <sphereGeometry args={[0.08, 6, 6]} />
-            <meshStandardMaterial color="white" />
+          {/* Left eye */}
+          <mesh position={[-0.1, 0.36, 0.32]}>
+            <sphereGeometry args={[0.028, 6, 6]} />
+            <meshStandardMaterial color="#1a1000" />
+          </mesh>
+          {/* Right eye */}
+          <mesh position={[0.1, 0.36, 0.32]}>
+            <sphereGeometry args={[0.028, 6, 6]} />
+            <meshStandardMaterial color="#1a1000" />
+          </mesh>
+          {/* Left ear outer - wide, flat like real rabbit ears */}
+          <mesh position={[-0.055, 0.55, 0.2]} rotation={[0.2, 0, -0.15]} scale={[1.4, 1, 0.5]}>
+            <capsuleGeometry args={[0.035, 0.26, 5, 5]} />
+            <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a87e52'} />
+          </mesh>
+          {/* Left ear inner */}
+          <mesh position={[-0.052, 0.55, 0.205]} rotation={[0.2, 0, -0.15]} scale={[1.3, 1, 0.45]}>
+            <capsuleGeometry args={[0.025, 0.2, 4, 4]} />
+            <meshStandardMaterial color="#e8a0a8" />
+          </mesh>
+          {/* Right ear outer */}
+          <mesh position={[0.055, 0.55, 0.2]} rotation={[0.2, 0, 0.15]} scale={[1.4, 1, 0.5]}>
+            <capsuleGeometry args={[0.035, 0.26, 5, 5]} />
+            <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a87e52'} />
+          </mesh>
+          {/* Right ear inner */}
+          <mesh position={[0.052, 0.55, 0.205]} rotation={[0.2, 0, 0.15]} scale={[1.3, 1, 0.45]}>
+            <capsuleGeometry args={[0.025, 0.2, 4, 4]} />
+            <meshStandardMaterial color="#e8a0a8" />
+          </mesh>
+          {/* Front-left leg */}
+          <group ref={flLegRef} position={[-0.08, 0.06, 0.1]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.05, 0.12, 0.05]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+            <mesh position={[0, -0.07, 0.01]}>
+              <sphereGeometry args={[0.028, 5, 5]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+          </group>
+          {/* Front-right leg */}
+          <group ref={frLegRef} position={[0.08, 0.06, 0.1]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.05, 0.12, 0.05]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+            <mesh position={[0, -0.07, 0.01]}>
+              <sphereGeometry args={[0.028, 5, 5]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+          </group>
+          {/* Back-left leg (larger, powerful hind leg) */}
+          <group ref={blLegRef} position={[-0.1, 0.08, -0.12]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.07, 0.1, 0.08]} />
+              <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+            </mesh>
+            <mesh castShadow position={[0, -0.1, 0.02]}>
+              <boxGeometry args={[0.05, 0.12, 0.055]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+            <mesh position={[0, -0.17, 0.04]}>
+              <boxGeometry args={[0.05, 0.025, 0.08]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+          </group>
+          {/* Back-right leg (larger, powerful hind leg) */}
+          <group ref={brLegRef} position={[0.1, 0.08, -0.12]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.07, 0.1, 0.08]} />
+              <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+            </mesh>
+            <mesh castShadow position={[0, -0.1, 0.02]}>
+              <boxGeometry args={[0.05, 0.12, 0.055]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+            <mesh position={[0, -0.17, 0.04]}>
+              <boxGeometry args={[0.05, 0.025, 0.08]} />
+              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+            </mesh>
+          </group>
+          {/* Tail - fluffy cotton ball */}
+          <mesh position={[0, 0.26, -0.28]}>
+            <sphereGeometry args={[0.065, 8, 8]} />
+            <meshStandardMaterial color="#f0ebe5" />
           </mesh>
         </group>
+        {/* Soft contact shadow on ground */}
+        <mesh position={[0, -data.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.35, 16]} />
+          <shaderMaterial
+            transparent
+            depthWrite={false}
+            vertexShader={softShadowVert}
+            fragmentShader={softShadowFrag}
+            uniforms={{ uOpacity: { value: 0.25 } }}
+          />
+        </mesh>
         <StatusBar
           hungerRef={hungerRef}
           thirstRef={thirstRef}

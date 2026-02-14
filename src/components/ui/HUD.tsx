@@ -102,6 +102,44 @@ export default function HUD() {
           </div>
         </div>
 
+        {/* Weather control */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-white/60">Weather</span>
+          <div className="flex gap-1">
+            {(['sunny', 'rainy'] as const).map((w) => (
+              <button
+                key={w}
+                onClick={() => {
+                  dispatch({ type: 'SET_WEATHER_LOCK', locked: true });
+                  dispatch({
+                    type: 'SET_WEATHER',
+                    weather: w,
+                    intensity: w === 'rainy' ? 0.75 : 0,
+                    nextChangeAt: Infinity,
+                  });
+                }}
+                className={`cursor-pointer rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                  ui.weatherLocked && ui.weatherType === w
+                    ? 'bg-cyan-500 text-white'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+              >
+                {w === 'sunny' ? 'Sunny' : 'Rainy'}
+              </button>
+            ))}
+            <button
+              onClick={() => dispatch({ type: 'SET_WEATHER_LOCK', locked: false })}
+              className={`cursor-pointer rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                !ui.weatherLocked
+                  ? 'bg-cyan-500 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              Auto
+            </button>
+          </div>
+        </div>
+
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"

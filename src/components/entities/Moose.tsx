@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import type { Group } from 'three';
+import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
 import type { MooseState } from '../../types/ecosystem.ts';
 import {
   MAX_SPEED_MOOSE,
@@ -43,6 +44,7 @@ export default function Moose({ data }: MooseProps) {
   const frLegRef = useRef<Group>(null!);
   const blLegRef = useRef<Group>(null!);
   const brLegRef = useRef<Group>(null!);
+  const headRef = useRef<Group>(null!);
   const state = useEcosystem();
   const dispatch = useEcosystemDispatch();
   const { followTarget, setFollowTarget } = useFollow();
@@ -145,7 +147,7 @@ export default function Moose({ data }: MooseProps) {
       const terrainY = groundHeightAt(pos.x, pos.z);
       const depth = waterDepthAt(pos.x, pos.z);
       const sinkY = depth > 0 ? -depth * 0.75 : 0;
-      groupRef.current.position.set(pos.x, terrainY + 0.9 + sinkY, pos.z);
+      groupRef.current.position.set(pos.x, terrainY + 1.1 + sinkY, pos.z);
 
       const speed = vel.length();
       if (speed > 0.08) {
@@ -156,11 +158,13 @@ export default function Moose({ data }: MooseProps) {
         if (brLegRef.current) brLegRef.current.rotation.x = leg1Angle;
         if (frLegRef.current) frLegRef.current.rotation.x = -leg1Angle;
         if (blLegRef.current) blLegRef.current.rotation.x = -leg1Angle;
+        if (headRef.current) headRef.current.rotation.x = Math.sin(t * 0.5) * 0.06;
       } else {
         if (flLegRef.current) flLegRef.current.rotation.x = 0;
         if (brLegRef.current) brLegRef.current.rotation.x = 0;
         if (frLegRef.current) frLegRef.current.rotation.x = 0;
         if (blLegRef.current) blLegRef.current.rotation.x = 0;
+        if (headRef.current) headRef.current.rotation.x = 0;
       }
 
       intentionRef.current = input.hasInput ? 'Player control' : 'Standing by';
@@ -174,7 +178,7 @@ export default function Moose({ data }: MooseProps) {
           type: 'UPDATE_ENTITY_POSITION',
           id: data.id,
           entityType: 'moose',
-          position: [pos.x, 0.9, pos.z],
+          position: [pos.x, 1.1, pos.z],
           velocity: [vel.x, vel.y, vel.z],
         });
       }
@@ -261,27 +265,26 @@ export default function Moose({ data }: MooseProps) {
     const terrainY = groundHeightAt(pos.x, pos.z);
     const depth = waterDepthAt(pos.x, pos.z);
     const sinkY = depth > 0 ? -depth * 0.75 : 0;
-    groupRef.current.position.set(pos.x, terrainY + 0.9 + sinkY, pos.z);
+    groupRef.current.position.set(pos.x, terrainY + 1.1 + sinkY, pos.z);
 
     const speed = vel.length();
     if (speed > 0.08) {
       groupRef.current.rotation.y = Math.atan2(vel.x, vel.z);
 
-      // Animate legs
-      const t = state.time * 20; // Speed of animation
-      // Diagonal pairs move together
+      const t = state.time * 20;
       const leg1Angle = Math.sin(t) * 0.4;
 
       if (flLegRef.current) flLegRef.current.rotation.x = leg1Angle;
       if (brLegRef.current) brLegRef.current.rotation.x = leg1Angle;
       if (frLegRef.current) frLegRef.current.rotation.x = -leg1Angle;
       if (blLegRef.current) blLegRef.current.rotation.x = -leg1Angle;
+      if (headRef.current) headRef.current.rotation.x = Math.sin(t * 0.5) * 0.06;
     } else {
-      // Idle pose
       if (flLegRef.current) flLegRef.current.rotation.x = 0;
       if (brLegRef.current) brLegRef.current.rotation.x = 0;
       if (frLegRef.current) frLegRef.current.rotation.x = 0;
       if (blLegRef.current) blLegRef.current.rotation.x = 0;
+      if (headRef.current) headRef.current.rotation.x = 0;
     }
 
     syncTimer.current += delta;
@@ -291,7 +294,7 @@ export default function Moose({ data }: MooseProps) {
         type: 'UPDATE_ENTITY_POSITION',
         id: data.id,
         entityType: 'moose',
-        position: [pos.x, 0.9, pos.z],
+        position: [pos.x, 1.1, pos.z],
         velocity: [vel.x, vel.y, vel.z],
       });
     }
@@ -313,70 +316,239 @@ export default function Moose({ data }: MooseProps) {
         ]}
       >
         <group scale={[2.2, 2.2, 2.2]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.55, 0.38, 1.0]} />
+          {/* === BODY === */}
+          {/* Main torso - compact barrel */}
+          <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
+            <capsuleGeometry args={[0.22, 0.28, 8, 12]} />
             <meshStandardMaterial color="#5f4026" />
           </mesh>
-          <mesh position={[0, 0.2, 0.65]} castShadow>
-            <boxGeometry args={[0.33, 0.3, 0.42]} />
-            <meshStandardMaterial color="#6f4a2d" />
+          {/* Shoulder hump - subtle */}
+          <mesh position={[0, 0.1, 0.08]} castShadow scale={[0.85, 0.8, 0.8]}>
+            <sphereGeometry args={[0.18, 10, 10]} />
+            <meshStandardMaterial color="#543822" />
           </mesh>
-          <mesh position={[0, 0.08, 0.95]}>
-            <boxGeometry args={[0.22, 0.17, 0.28]} />
-            <meshStandardMaterial color="#7a5638" />
+          {/* Hip / rump */}
+          <mesh position={[0, 0.02, -0.2]} castShadow>
+            <sphereGeometry args={[0.17, 10, 10]} />
+            <meshStandardMaterial color="#5a3d25" />
           </mesh>
-          <mesh position={[-0.15, 0.48, 0.71]}>
-            <boxGeometry args={[0.06, 0.34, 0.05]} />
-            <meshStandardMaterial color="#d6c4a2" />
+          {/* Lighter belly underside */}
+          <mesh position={[0, -0.12, -0.02]}>
+            <boxGeometry args={[0.26, 0.07, 0.4]} />
+            <meshStandardMaterial color="#6b4e34" />
           </mesh>
-          <mesh position={[-0.28, 0.62, 0.71]}>
-            <boxGeometry args={[0.23, 0.06, 0.05]} />
-            <meshStandardMaterial color="#d6c4a2" />
+
+          {/* === NECK === */}
+          <mesh position={[0, 0.12, 0.3]} rotation={[0.7, 0, 0]} castShadow>
+            <capsuleGeometry args={[0.1, 0.2, 6, 8]} />
+            <meshStandardMaterial color="#5a3d25" />
           </mesh>
-          <mesh position={[0.15, 0.48, 0.71]}>
-            <boxGeometry args={[0.06, 0.34, 0.05]} />
-            <meshStandardMaterial color="#d6c4a2" />
-          </mesh>
-          <mesh position={[0.28, 0.62, 0.71]}>
-            <boxGeometry args={[0.23, 0.06, 0.05]} />
-            <meshStandardMaterial color="#d6c4a2" />
-          </mesh>
+
+          {/* === HEAD GROUP (animated) === */}
+          <group ref={headRef} position={[0, 0.1, 0.52]}>
+            {/* Skull */}
+            <mesh castShadow>
+              <sphereGeometry args={[0.12, 10, 10]} />
+              <meshStandardMaterial color="#6f4a2d" />
+            </mesh>
+            {/* Muzzle - large, bulbous moose nose */}
+            <mesh position={[0, -0.05, 0.12]} scale={[0.9, 0.8, 1.15]} castShadow>
+              <sphereGeometry args={[0.08, 10, 10]} />
+              <meshStandardMaterial color="#7a5638" />
+            </mesh>
+            {/* Upper lip / nose pad */}
+            <mesh position={[0, -0.09, 0.18]} scale={[1.05, 0.65, 0.8]}>
+              <sphereGeometry args={[0.048, 8, 8]} />
+              <meshStandardMaterial color="#8a6448" />
+            </mesh>
+            {/* Left nostril */}
+            <mesh position={[-0.022, -0.1, 0.21]}>
+              <sphereGeometry args={[0.012, 6, 6]} />
+              <meshStandardMaterial color="#2a1a10" />
+            </mesh>
+            {/* Right nostril */}
+            <mesh position={[0.022, -0.1, 0.21]}>
+              <sphereGeometry args={[0.012, 6, 6]} />
+              <meshStandardMaterial color="#2a1a10" />
+            </mesh>
+            {/* Left eye */}
+            <mesh position={[-0.08, 0.04, 0.06]}>
+              <sphereGeometry args={[0.02, 8, 8]} />
+              <meshStandardMaterial color="#1a1000" />
+            </mesh>
+            {/* Right eye */}
+            <mesh position={[0.08, 0.04, 0.06]}>
+              <sphereGeometry args={[0.02, 8, 8]} />
+              <meshStandardMaterial color="#1a1000" />
+            </mesh>
+            {/* Left ear */}
+            <mesh position={[-0.09, 0.1, -0.03]} rotation={[0.25, 0, -0.35]}>
+              <capsuleGeometry args={[0.025, 0.06, 4, 6]} />
+              <meshStandardMaterial color="#5a3d25" />
+            </mesh>
+            {/* Left ear inner */}
+            <mesh position={[-0.088, 0.1, -0.025]} rotation={[0.25, 0, -0.35]}>
+              <capsuleGeometry args={[0.016, 0.04, 4, 5]} />
+              <meshStandardMaterial color="#7a6048" />
+            </mesh>
+            {/* Right ear */}
+            <mesh position={[0.09, 0.1, -0.03]} rotation={[0.25, 0, 0.35]}>
+              <capsuleGeometry args={[0.025, 0.06, 4, 6]} />
+              <meshStandardMaterial color="#5a3d25" />
+            </mesh>
+            {/* Right ear inner */}
+            <mesh position={[0.088, 0.1, -0.025]} rotation={[0.25, 0, 0.35]}>
+              <capsuleGeometry args={[0.016, 0.04, 4, 5]} />
+              <meshStandardMaterial color="#7a6048" />
+            </mesh>
+            {/* Dewlap (bell) - hanging throat skin */}
+            <mesh position={[0, -0.15, 0.03]} rotation={[0.3, 0, 0]}>
+              <capsuleGeometry args={[0.03, 0.08, 4, 6]} />
+              <meshStandardMaterial color="#6f4a2d" />
+            </mesh>
+
+            {/* === ANTLERS (palmate) === */}
+            {/* Left antler beam */}
+            <mesh position={[-0.07, 0.16, -0.02]} rotation={[0.1, 0, -0.45]}>
+              <capsuleGeometry args={[0.016, 0.14, 4, 6]} />
+              <meshStandardMaterial color="#d6c4a2" />
+            </mesh>
+            {/* Left palm (flat broad part) */}
+            <mesh position={[-0.19, 0.3, -0.02]} rotation={[0, 0, -0.25]} scale={[1.4, 0.25, 1]}>
+              <sphereGeometry args={[0.08, 8, 8]} />
+              <meshStandardMaterial color="#d6c4a2" />
+            </mesh>
+            {/* Left tine 1 */}
+            <mesh position={[-0.14, 0.39, -0.02]} rotation={[0, 0, -0.15]}>
+              <capsuleGeometry args={[0.009, 0.08, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+            {/* Left tine 2 */}
+            <mesh position={[-0.23, 0.37, 0]} rotation={[0, 0, -0.55]}>
+              <capsuleGeometry args={[0.009, 0.06, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+            {/* Left tine 3 */}
+            <mesh position={[-0.28, 0.31, 0.02]} rotation={[0, 0, -0.75]}>
+              <capsuleGeometry args={[0.009, 0.05, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+            {/* Left brow tine */}
+            <mesh position={[-0.1, 0.19, 0.05]} rotation={[0.3, 0, -0.7]}>
+              <capsuleGeometry args={[0.009, 0.05, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+            {/* Right antler beam */}
+            <mesh position={[0.07, 0.16, -0.02]} rotation={[0.1, 0, 0.45]}>
+              <capsuleGeometry args={[0.016, 0.14, 4, 6]} />
+              <meshStandardMaterial color="#d6c4a2" />
+            </mesh>
+            {/* Right palm */}
+            <mesh position={[0.19, 0.3, -0.02]} rotation={[0, 0, 0.25]} scale={[1.4, 0.25, 1]}>
+              <sphereGeometry args={[0.08, 8, 8]} />
+              <meshStandardMaterial color="#d6c4a2" />
+            </mesh>
+            {/* Right tine 1 */}
+            <mesh position={[0.14, 0.39, -0.02]} rotation={[0, 0, 0.15]}>
+              <capsuleGeometry args={[0.009, 0.08, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+            {/* Right tine 2 */}
+            <mesh position={[0.23, 0.37, 0]} rotation={[0, 0, 0.55]}>
+              <capsuleGeometry args={[0.009, 0.06, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+            {/* Right tine 3 */}
+            <mesh position={[0.28, 0.31, 0.02]} rotation={[0, 0, 0.75]}>
+              <capsuleGeometry args={[0.009, 0.05, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+            {/* Right brow tine */}
+            <mesh position={[0.1, 0.19, 0.05]} rotation={[0.3, 0, 0.7]}>
+              <capsuleGeometry args={[0.009, 0.05, 3, 4]} />
+              <meshStandardMaterial color="#c8b690" />
+            </mesh>
+          </group>
+
+          {/* === LEGS (upper + lower + hoof) === */}
           {/* Front Left Leg */}
-          <group ref={flLegRef} position={[-0.2, -0.11, 0.25]}>
-            <mesh position={[0, -0.17, 0]} castShadow>
-              <boxGeometry args={[0.1, 0.34, 0.1]} />
+          <group ref={flLegRef} position={[-0.14, -0.14, 0.14]}>
+            <mesh position={[0, -0.1, 0]} castShadow>
+              <boxGeometry args={[0.09, 0.2, 0.1]} />
               <meshStandardMaterial color="#4b311f" />
             </mesh>
+            <mesh position={[0, -0.25, 0]} castShadow>
+              <boxGeometry args={[0.065, 0.14, 0.07]} />
+              <meshStandardMaterial color="#8a7660" />
+            </mesh>
+            <mesh position={[0, -0.34, 0]}>
+              <boxGeometry args={[0.075, 0.04, 0.085]} />
+              <meshStandardMaterial color="#1a1a1a" />
+            </mesh>
           </group>
-
           {/* Front Right Leg */}
-          <group ref={frLegRef} position={[0.2, -0.11, 0.25]}>
-            <mesh position={[0, -0.17, 0]} castShadow>
-              <boxGeometry args={[0.1, 0.34, 0.1]} />
+          <group ref={frLegRef} position={[0.14, -0.14, 0.14]}>
+            <mesh position={[0, -0.1, 0]} castShadow>
+              <boxGeometry args={[0.09, 0.2, 0.1]} />
               <meshStandardMaterial color="#4b311f" />
             </mesh>
+            <mesh position={[0, -0.25, 0]} castShadow>
+              <boxGeometry args={[0.065, 0.14, 0.07]} />
+              <meshStandardMaterial color="#8a7660" />
+            </mesh>
+            <mesh position={[0, -0.34, 0]}>
+              <boxGeometry args={[0.075, 0.04, 0.085]} />
+              <meshStandardMaterial color="#1a1a1a" />
+            </mesh>
           </group>
-
           {/* Back Left Leg */}
-          <group ref={blLegRef} position={[-0.2, -0.11, -0.3]}>
-            <mesh position={[0, -0.17, 0]} castShadow>
-              <boxGeometry args={[0.1, 0.34, 0.1]} />
+          <group ref={blLegRef} position={[-0.14, -0.14, -0.2]}>
+            <mesh position={[0, -0.1, 0]} castShadow>
+              <boxGeometry args={[0.09, 0.2, 0.1]} />
               <meshStandardMaterial color="#4b311f" />
+            </mesh>
+            <mesh position={[0, -0.25, 0]} castShadow>
+              <boxGeometry args={[0.065, 0.14, 0.07]} />
+              <meshStandardMaterial color="#8a7660" />
+            </mesh>
+            <mesh position={[0, -0.34, 0]}>
+              <boxGeometry args={[0.075, 0.04, 0.085]} />
+              <meshStandardMaterial color="#1a1a1a" />
+            </mesh>
+          </group>
+          {/* Back Right Leg */}
+          <group ref={brLegRef} position={[0.14, -0.14, -0.2]}>
+            <mesh position={[0, -0.1, 0]} castShadow>
+              <boxGeometry args={[0.09, 0.2, 0.1]} />
+              <meshStandardMaterial color="#4b311f" />
+            </mesh>
+            <mesh position={[0, -0.25, 0]} castShadow>
+              <boxGeometry args={[0.065, 0.14, 0.07]} />
+              <meshStandardMaterial color="#8a7660" />
+            </mesh>
+            <mesh position={[0, -0.34, 0]}>
+              <boxGeometry args={[0.075, 0.04, 0.085]} />
+              <meshStandardMaterial color="#1a1a1a" />
             </mesh>
           </group>
 
-          {/* Back Right Leg */}
-          <group ref={brLegRef} position={[0.2, -0.11, -0.3]}>
-            <mesh position={[0, -0.17, 0]} castShadow>
-              <boxGeometry args={[0.1, 0.34, 0.1]} />
-              <meshStandardMaterial color="#4b311f" />
-            </mesh>
-          </group>
-          <mesh position={[0, 0.15, -0.64]} rotation={[0.5, 0, 0]}>
-            <capsuleGeometry args={[0.06, 0.25, 4, 6]} />
+          {/* Short tail */}
+          <mesh position={[0, 0.08, -0.35]} rotation={[0.6, 0, 0]}>
+            <capsuleGeometry args={[0.035, 0.06, 4, 6]} />
             <meshStandardMaterial color="#5a3d25" />
           </mesh>
         </group>
+        {/* Soft contact shadow on ground */}
+        <mesh position={[0, -data.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[1.5, 16]} />
+          <shaderMaterial
+            transparent
+            depthWrite={false}
+            vertexShader={softShadowVert}
+            fragmentShader={softShadowFrag}
+            uniforms={{ uOpacity: { value: 0.3 } }}
+          />
+        </mesh>
         <StatusBar hungerRef={hungerRef} thirstRef={thirstRef} yOffset={2.1} />
       </group>
       <IntentionOverlay

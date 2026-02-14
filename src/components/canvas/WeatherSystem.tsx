@@ -148,6 +148,7 @@ export default function WeatherSystem() {
   const sunMeshRef = weatherRefs.sunMeshRef;
 
   const sunPos = useMemo(() => new Vector3(), []);
+  const cameraXZ = useMemo(() => new Vector3(), []);
   const tempColor = useMemo(() => new Color(), []);
   const tempColor2 = useMemo(() => new Color(), []);
   const simTimeRef = useRef(state.time);
@@ -184,17 +185,19 @@ export default function WeatherSystem() {
       pendingTickDeltaRef.current = 0;
     }
 
-    // Weather change logic
-    weatherTimerRef.current += delta;
-    if (weatherTimerRef.current >= WEATHER_CHANGE_INTERVAL) {
-      weatherTimerRef.current = 0;
-      const shouldRain = Math.random() < RAIN_CHANCE;
-      dispatch({
-        type: 'SET_WEATHER',
-        weather: shouldRain ? 'rainy' : 'sunny',
-        intensity: shouldRain ? 0.5 + Math.random() * 0.5 : 0,
-        nextChangeAt: simTimeRef.current + WEATHER_CHANGE_INTERVAL,
-      });
+    // Weather change logic (skipped when user has locked the weather)
+    if (!state.weatherLocked) {
+      weatherTimerRef.current += delta;
+      if (weatherTimerRef.current >= WEATHER_CHANGE_INTERVAL) {
+        weatherTimerRef.current = 0;
+        const shouldRain = Math.random() < RAIN_CHANCE;
+        dispatch({
+          type: 'SET_WEATHER',
+          weather: shouldRain ? 'rainy' : 'sunny',
+          intensity: shouldRain ? 0.5 + Math.random() * 0.5 : 0,
+          nextChangeAt: simTimeRef.current + WEATHER_CHANGE_INTERVAL,
+        });
+      }
     }
 
     const t = timeOfDayRef.current;
@@ -222,9 +225,15 @@ export default function WeatherSystem() {
       sunPos.set(0, -20, -15);
     }
 
-    // Update directional light
-    sunRef.current.position.copy(sunPos);
-    sunRef.current.target.position.set(0, 0, 0);
+    // Shadow frustum follows camera so shadows are always visible near the viewer
+    const cam = scene.getObjectByProperty('isCamera', true) as any;
+    if (cam) {
+      cameraXZ.set(cam.position.x, 0, cam.position.z);
+    }
+
+    // Update directional light — offset by camera XZ so shadow coverage follows viewer
+    sunRef.current.position.copy(sunPos).add(cameraXZ);
+    sunRef.current.target.position.copy(cameraXZ);
     sunRef.current.target.updateMatrixWorld();
 
     // Update sun mesh for god rays (positioned far away in sun direction)
@@ -316,13 +325,16 @@ export default function WeatherSystem() {
         position={[15, 35, -15]}
         intensity={1.2}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-far={120}
-        shadow-camera-left={-60}
-        shadow-camera-right={60}
-        shadow-camera-top={60}
-        shadow-camera-bottom={-60}
+        shadow-mapSize-width={4096}
+        shadow-mapSize-height={4096}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.4}
+        shadow-radius={3}
+        shadow-camera-far={200}
+        shadow-camera-left={-80}
+        shadow-camera-right={80}
+        shadow-camera-top={80}
+        shadow-camera-bottom={-80}
       />
 
       {/* Sun mesh for god rays — emissive sphere positioned at sun direction */}

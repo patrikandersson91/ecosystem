@@ -22,6 +22,7 @@ import PostProcessingPipeline from './PostProcessingPipeline.tsx'
 import GroundMist from './GroundMist.tsx'
 import CascadedShadows from './CascadedShadows.tsx'
 import Lightning from './Lightning.tsx'
+import Rain from './Rain.tsx'
 import { WORLD_SIZE, WORLD_SCALE } from '../../types/ecosystem.ts';
 import {
   useEcosystem,
@@ -178,6 +179,7 @@ export default function EcosystemScene() {
       <FollowCameraController controlsRef={controlsRef} />
       {/* <CascadedShadows /> */}
       <Lightning />
+      <Rain />
       <Terrain />
       <Grass />
       <River />
