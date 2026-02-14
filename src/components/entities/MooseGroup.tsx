@@ -1,13 +1,13 @@
-import { useEcosystem } from '../../state/ecosystem-context.tsx'
+import { useMooseIds } from '../../state/ecosystem-context.tsx'
 import Moose from './Moose.tsx'
 
 export default function MooseGroup() {
-  const { moose } = useEcosystem()
+  const mooseIds = useMooseIds()
 
   return (
     <>
-      {moose.map(m => (
-        <Moose key={m.id} data={m} />
+      {mooseIds.map(id => (
+        <Moose key={id} id={id} />
       ))}
     </>
   )

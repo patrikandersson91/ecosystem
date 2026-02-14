@@ -2,7 +2,7 @@ import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useDebug } from '../../state/debug-context.tsx'
-import { useEcosystem } from '../../state/ecosystem-context.tsx'
+import { useEcosystemRef } from '../../state/ecosystem-context.tsx'
 
 // ─── Particle pool sizes ─────────────────────────────────────
 const DROPLET_POOL = 50
@@ -136,7 +136,7 @@ function randomBloodColor(): [number, number, number] {
 
 export default function BloodEffects() {
   const { bloodSpawnRef } = useDebug()
-  const state = useEcosystem()
+  const stateRef = useEcosystemRef()
 
   // ─── Droplet pool ──────────────────────────────────────────
   const droplets = useRef<DropletSlot[]>(
@@ -254,6 +254,7 @@ export default function BloodEffects() {
   }, [])
 
   useFrame((_s, delta) => {
+    const state = stateRef.current
     if (state.paused) return
 
     // ─── Process kill queue ────────────────────────────────

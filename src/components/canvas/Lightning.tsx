@@ -8,7 +8,6 @@ import { WORLD_SIZE } from '../../types/ecosystem.ts'
 const MIN_INTERVAL = 6
 const MAX_INTERVAL = 18
 const BOLT_DURATION = 0.18
-const FLASH_DECAY = 0.85
 
 function generateBolt(
   startX: number,

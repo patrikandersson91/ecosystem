@@ -3,7 +3,7 @@ import { Color, Float32BufferAttribute, PlaneGeometry } from 'three'
 import { WORLD_SIZE } from '../../types/ecosystem.ts'
 import { groundHeightAt } from '../../utils/terrain-height.ts'
 
-const TERRAIN_SEGMENTS = 220
+const TERRAIN_SEGMENTS = 128
 
 export default function Terrain() {
   const geometry = useMemo(() => {

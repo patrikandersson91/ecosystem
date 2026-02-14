@@ -18,25 +18,27 @@ import BloodEffects from './BloodEffects.tsx';
 import RabbitGroup from '../entities/RabbitGroup.tsx';
 import FoxGroup from '../entities/FoxGroup.tsx';
 import MooseGroup from '../entities/MooseGroup.tsx';
-import PostProcessingPipeline from './PostProcessingPipeline.tsx'
+// import PostProcessingPipeline from './PostProcessingPipeline.tsx'
 import GroundMist from './GroundMist.tsx'
-import CascadedShadows from './CascadedShadows.tsx'
+// import CascadedShadows from './CascadedShadows.tsx'
 import Lightning from './Lightning.tsx'
 import Rain from './Rain.tsx'
-import { WORLD_SIZE, WORLD_SCALE } from '../../types/ecosystem.ts';
+import AdaptivePerformance from './AdaptivePerformance.tsx'
+import { WORLD_SIZE, WORLD_SCALE, MAX_FLOWERS } from '../../types/ecosystem.ts';
 import {
-  useEcosystem,
+  useEcosystemRef,
   useEcosystemDispatch,
   randomFlowerPosition,
 } from '../../state/ecosystem-context.tsx';
 import { useFollow } from '../../state/follow-context.tsx';
 
 function ExtinctionRecorder() {
-  const state = useEcosystem();
+  const stateRef = useEcosystemRef();
   const dispatch = useEcosystemDispatch();
   const recordedRef = useRef({ rabbits: false, foxes: false, flowers: false });
 
   useFrame(() => {
+    const state = stateRef.current;
     if (state.paused) return;
     if (state.time < 1) {
       recordedRef.current = { rabbits: false, foxes: false, flowers: false };
@@ -45,7 +47,7 @@ function ExtinctionRecorder() {
 
     const rabbits = state.rabbits.length;
     const foxes = state.foxes.length;
-    const flowers = state.flowers.filter((f) => f.alive).length;
+    const flowers = state.flowers.filter((f: { alive: boolean }) => f.alive).length;
 
     if (rabbits === 0 && !recordedRef.current.rabbits) {
       recordedRef.current.rabbits = true;
@@ -65,17 +67,18 @@ function ExtinctionRecorder() {
 }
 
 function FlowerRegrowth() {
-  const state = useEcosystem();
+  const stateRef = useEcosystemRef();
   const dispatch = useEcosystemDispatch();
   const timer = useRef(0);
 
   useFrame((_, rawDelta) => {
+    const state = stateRef.current;
     if (state.paused) return;
     timer.current += rawDelta * state.speed;
     if (timer.current > 0.75) {
       timer.current = 0;
-      const aliveCount = state.flowers.filter((f) => f.alive).length;
-      const targetFlowerCount = Math.floor(85 * WORLD_SCALE);
+      const aliveCount = state.flowers.filter((f: { alive: boolean }) => f.alive).length;
+      const targetFlowerCount = Math.min(Math.floor(85 * WORLD_SCALE), MAX_FLOWERS);
       const spawnCount =
         aliveCount < targetFlowerCount
           ? Math.max(1, Math.floor((targetFlowerCount - aliveCount) / 50))
@@ -196,6 +199,7 @@ export default function EcosystemScene() {
       <MooseGroup />
       <FlowerRegrowth />
       <ExtinctionRecorder />
+      <AdaptivePerformance />
       {/* <PostProcessingPipeline /> */}
     </>
   );

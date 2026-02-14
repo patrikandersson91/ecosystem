@@ -26,9 +26,10 @@ export default function SimulationPage() {
         <WeatherRefsProvider>
         <div style={{ position: 'fixed', inset: 0 }}>
           <Canvas
-            camera={{ position: [0, WORLD_SIZE * 0.6, WORLD_SIZE * 0.8], fov: 60, near: 0.1, far: WORLD_SIZE * 12 }}
+            camera={{ position: [0, WORLD_SIZE * 0.6, WORLD_SIZE * 0.8], fov: 60, near: 1, far: WORLD_SIZE * 4 }}
             shadows={{ type: PCFSoftShadowMap }}
             dpr={[1, 1.5]}
+            gl={{ powerPreference: 'high-performance', stencil: false, depth: true }}
             style={{ width: '100%', height: '100%' }}
           >
             <Suspense fallback={null}>

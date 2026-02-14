@@ -1,9 +1,8 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Group, Mesh } from 'three';
 import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
-import type { RabbitState } from '../../types/ecosystem.ts';
 import {
   FLEE_RADIUS,
   MAX_SPEED_RABBIT,
@@ -25,7 +24,7 @@ import { useSteering } from '../../hooks/useSteering.ts';
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
 import { useMovementInput } from '../../hooks/useMovementInput.ts';
 import {
-  useEcosystem,
+  useEcosystemRef,
   useEcosystemDispatch,
 } from '../../state/ecosystem-context.tsx';
 import { useFollow } from '../../state/follow-context.tsx';
@@ -58,35 +57,42 @@ heartShape.bezierCurveTo(0.15, 0.6, 0, 0.45, 0, 0.3);
 const heartGeo = new THREE.ShapeGeometry(heartShape);
 
 interface RabbitProps {
-  data: RabbitState;
+  id: string;
 }
 
-export default function Rabbit({ data }: RabbitProps) {
+export default function Rabbit({ id }: RabbitProps) {
   const groupRef = useRef<Group>(null!);
   const flLegRef = useRef<Group>(null!);
   const frLegRef = useRef<Group>(null!);
   const blLegRef = useRef<Group>(null!);
   const brLegRef = useRef<Group>(null!);
   const camera = useThree((threeState) => threeState.camera);
-  const state = useEcosystem();
+  const stateRef = useEcosystemRef();
   const dispatch = useEcosystemDispatch();
+
+  // Snapshot initial data from state ref (stable, never re-renders)
+  const initData = useMemo(() => stateRef.current.rabbits.find(r => r.id === id)!, []);
+  const sex = initData.sex;
   const { followTarget, setFollowTarget } = useFollow();
   const { getMovementInput } = useMovementInput();
 
+  // Visual state — only updates on actual changes (rare, not 60/sec)
+  const [visualPregnant, setVisualPregnant] = useState(initData.pregnant);
+  const [visualAdult, setVisualAdult] = useState(initData.isAdult);
+
   // Mutable refs for per-frame physics
-  const position = useRef(new THREE.Vector3(...data.position));
-  const velocity = useRef(new THREE.Vector3(...data.velocity));
-  const jumpPhase = useRef(data.jumpPhase);
+  const position = useRef(new THREE.Vector3(...initData.position));
+  const velocity = useRef(new THREE.Vector3(...initData.velocity));
+  const jumpPhase = useRef(initData.jumpPhase);
   const syncTimer = useRef(0);
 
   // Local reproductive state refs
-  const pregnantRef = useRef(data.pregnant);
-  const isAdultRef = useRef(data.isAdult);
+  const pregnantRef = useRef(initData.pregnant);
+  const isAdultRef = useRef(initData.isAdult);
   const matingCooldownRef = useRef(0);
 
   // Mating pause
   const matingPauseRef = useRef(0);
-  const prevPregnantRef = useRef(data.pregnant);
   const heartRef = useRef<Mesh>(null!);
 
   // Drinking / eating pauses
@@ -105,16 +111,6 @@ export default function Rabbit({ data }: RabbitProps) {
   const intentionTargetRef = useRef<THREE.Vector3 | null>(null);
   const effectiveSightRef = useRef(FLEE_RADIUS);
 
-  // Sync from state on render
-  pregnantRef.current = data.pregnant;
-  isAdultRef.current = data.isAdult;
-
-  // Detect female becoming pregnant → trigger mating pause
-  if (data.pregnant && !prevPregnantRef.current) {
-    matingPauseRef.current = MATING_PAUSE_DURATION;
-  }
-  prevPregnantRef.current = data.pregnant;
-
   // Steering
   const { seek, flee, wander, applyForces } = useSteering({
     maxSpeed: MAX_SPEED_RABBIT,
@@ -131,11 +127,11 @@ export default function Rabbit({ data }: RabbitProps) {
     hungerRef,
     thirstRef,
   } = useEntityNeeds({
-    id: data.id,
+    id: id,
     entityType: 'rabbit',
-    hunger: data.hunger,
-    thirst: data.thirst,
-    hungerRate: data.isAdult ? ADULT_HUNGER_RATE : BABY_HUNGER_RATE,
+    hunger: initData.hunger,
+    thirst: initData.thirst,
+    hungerRate: initData.isAdult ? ADULT_HUNGER_RATE : BABY_HUNGER_RATE,
   });
 
   // Reusable temp vectors
@@ -148,6 +144,7 @@ export default function Rabbit({ data }: RabbitProps) {
   const upAxis = useMemo(() => new THREE.Vector3(0, 1, 0), []);
 
   useFrame((_frameState, rawDelta) => {
+    const state = stateRef.current;
     if (state.paused) return;
 
     const delta = rawDelta * state.speed;
@@ -167,7 +164,7 @@ export default function Rabbit({ data }: RabbitProps) {
     const pos = position.current;
     const vel = velocity.current;
     const isPlayerControlled =
-      followTarget?.type === 'rabbit' && followTarget.id === data.id;
+      followTarget?.type === 'rabbit' && followTarget.id === id;
     const effectiveFleeRadius =
       FLEE_RADIUS * getSightMultiplier(state.timeOfDay);
     effectiveSightRef.current = effectiveFleeRadius;
@@ -253,7 +250,7 @@ export default function Rabbit({ data }: RabbitProps) {
         syncTimer.current = 0;
         dispatch({
           type: 'UPDATE_ENTITY_POSITION',
-          id: data.id,
+          id: id,
           entityType: 'rabbit',
           position: [pos.x, 0, pos.z],
           velocity: [vel.x, vel.y, vel.z],
@@ -297,7 +294,7 @@ export default function Rabbit({ data }: RabbitProps) {
         syncTimer.current = 0;
         dispatch({
           type: 'UPDATE_ENTITY_POSITION',
-          id: data.id,
+          id: id,
           entityType: 'rabbit',
           position: [pos.x, 0, pos.z],
           velocity: [0, 0, 0],
@@ -348,7 +345,7 @@ export default function Rabbit({ data }: RabbitProps) {
         syncTimer.current = 0;
         dispatch({
           type: 'UPDATE_ENTITY_POSITION',
-          id: data.id,
+          id: id,
           entityType: 'rabbit',
           position: [pos.x, 0, pos.z],
           velocity: [0, 0, 0],
@@ -402,7 +399,7 @@ export default function Rabbit({ data }: RabbitProps) {
           dispatch({
             type: 'EAT_FLOWER',
             flowerId: eatingFlowerIdRef.current,
-            entityId: data.id,
+            entityId: id,
           });
           eatingFlowerIdRef.current = null;
         }
@@ -416,7 +413,7 @@ export default function Rabbit({ data }: RabbitProps) {
         syncTimer.current = 0;
         dispatch({
           type: 'UPDATE_ENTITY_POSITION',
-          id: data.id,
+          id: id,
           entityType: 'rabbit',
           position: [pos.x, 0, pos.z],
           velocity: [0, 0, 0],
@@ -462,7 +459,7 @@ export default function Rabbit({ data }: RabbitProps) {
       intentionTargetRef.current = tempTarget.clone();
 
       if (pos.distanceTo(tempTarget) < 1.0) {
-        dispatch({ type: 'DRINK', entityId: data.id, entityType: 'rabbit' });
+        dispatch({ type: 'DRINK', entityId: id, entityType: 'rabbit' });
       }
 
       // ── 3. SEEK MATE: well-fed (>80%), adult, not pregnant, cooldown expired ──
@@ -477,11 +474,11 @@ export default function Rabbit({ data }: RabbitProps) {
       // Find eligible mates: opposite sex, adult, not pregnant
       const eligibleMates = state.rabbits.filter(
         (r) =>
-          r.id !== data.id &&
+          r.id !== id &&
           r.alive &&
           r.isAdult &&
           !r.pregnant &&
-          r.sex !== data.sex,
+          r.sex !== sex,
       );
       const nearbyMates = entitiesInRadius(
         [pos.x, pos.y, pos.z],
@@ -498,12 +495,12 @@ export default function Rabbit({ data }: RabbitProps) {
           intentionTargetRef.current = tempTarget.clone();
 
           // Close enough to mate — only males initiate
-          if (pos.distanceTo(tempTarget) < 1.0 && data.sex === 'male') {
+          if (pos.distanceTo(tempTarget) < 1.0 && sex === 'male') {
             matingCooldownRef.current = MATING_COOLDOWN;
             matingPauseRef.current = MATING_PAUSE_DURATION;
             dispatch({
               type: 'RABBIT_MATE',
-              maleId: data.id,
+              maleId: id,
               femaleId: nearestMate.id,
             });
           }
@@ -578,7 +575,7 @@ export default function Rabbit({ data }: RabbitProps) {
               dispatch({
                 type: 'EAT_FLOWER',
                 flowerId: targetFlower.id,
-                entityId: data.id,
+                entityId: id,
               });
             }
           } else {
@@ -660,7 +657,7 @@ export default function Rabbit({ data }: RabbitProps) {
             dispatch({
               type: 'EAT_FLOWER',
               flowerId: targetFlower.id,
-              entityId: data.id,
+              entityId: id,
             });
           }
         }
@@ -740,42 +737,59 @@ export default function Rabbit({ data }: RabbitProps) {
       syncTimer.current = 0;
       dispatch({
         type: 'UPDATE_ENTITY_POSITION',
-        id: data.id,
+        id: id,
         entityType: 'rabbit',
         position: [pos.x, 0, pos.z],
         velocity: [vel.x, vel.y, vel.z],
       });
+
+      // Sync visual state from global state (handles external changes like RABBIT_MATE)
+      const me = state.rabbits.find(r => r.id === id);
+      if (me) {
+        if (me.pregnant !== pregnantRef.current) {
+          // Detect becoming pregnant → trigger mating pause
+          if (me.pregnant && !pregnantRef.current) {
+            matingPauseRef.current = MATING_PAUSE_DURATION;
+          }
+          pregnantRef.current = me.pregnant;
+          setVisualPregnant(me.pregnant);
+        }
+        if (me.isAdult !== isAdultRef.current) {
+          isAdultRef.current = me.isAdult;
+          setVisualAdult(me.isAdult);
+        }
+      }
     }
   });
 
-  const visualScale = data.isAdult ? 1 : 0.6;
-  const barYOffset = data.isAdult ? 1.0 : 0.7;
+  const visualScale = visualAdult ? 1 : 0.6;
+  const barYOffset = visualAdult ? 1.0 : 0.7;
 
   return (
     <>
       <group
         ref={groupRef}
-        name={`animal-rabbit-${data.id}`}
+        name={`animal-rabbit-${id}`}
         onClick={(event) => {
           event.stopPropagation();
-          setFollowTarget({ id: data.id, type: 'rabbit' });
+          setFollowTarget({ id: id, type: 'rabbit' });
         }}
         position={[
-          data.position[0],
-          groundHeightAt(data.position[0], data.position[2]) + data.position[1],
-          data.position[2],
+          initData.position[0],
+          groundHeightAt(initData.position[0], initData.position[2]) + initData.position[1],
+          initData.position[2],
         ]}
       >
         <group scale={visualScale}>
           {/* Body - elongated oval torso */}
           <mesh castShadow position={[0, 0.2, -0.02]} scale={[1, 0.9, 1.15]}>
-            <sphereGeometry args={[0.22, 10, 10]} />
-            <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+            <sphereGeometry args={[0.22, 6, 6]} />
+            <meshStandardMaterial color={visualPregnant ? '#dba0b8' : '#c49a6c'} />
           </mesh>
           {/* Rump - round backside */}
           <mesh castShadow position={[0, 0.24, -0.14]}>
-            <sphereGeometry args={[0.17, 8, 8]} />
-            <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+            <sphereGeometry args={[0.17, 6, 6]} />
+            <meshStandardMaterial color={visualPregnant ? '#dba0b8' : '#c49a6c'} />
           </mesh>
           {/* Belly - lighter underside */}
           <mesh position={[0, 0.12, 0.02]}>
@@ -784,12 +798,12 @@ export default function Rabbit({ data }: RabbitProps) {
           </mesh>
           {/* Head */}
           <mesh castShadow position={[0, 0.32, 0.26]}>
-            <sphereGeometry args={[0.14, 10, 10]} />
-            <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+            <sphereGeometry args={[0.14, 6, 6]} />
+            <meshStandardMaterial color={visualPregnant ? '#dba0b8' : '#c49a6c'} />
           </mesh>
           {/* Muzzle - wider, softer */}
           <mesh position={[0, 0.26, 0.36]} scale={[1.3, 0.85, 1]}>
-            <sphereGeometry args={[0.065, 8, 8]} />
+            <sphereGeometry args={[0.065, 6, 6]} />
             <meshStandardMaterial color="#dcc8a8" />
           </mesh>
           {/* Nose */}
@@ -809,8 +823,8 @@ export default function Rabbit({ data }: RabbitProps) {
           </mesh>
           {/* Left ear outer - wide, flat like real rabbit ears */}
           <mesh position={[-0.055, 0.55, 0.2]} rotation={[0.2, 0, -0.15]} scale={[1.4, 1, 0.5]}>
-            <capsuleGeometry args={[0.035, 0.26, 5, 5]} />
-            <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a87e52'} />
+            <capsuleGeometry args={[0.035, 0.26, 4, 4]} />
+            <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a87e52'} />
           </mesh>
           {/* Left ear inner */}
           <mesh position={[-0.052, 0.55, 0.205]} rotation={[0.2, 0, -0.15]} scale={[1.3, 1, 0.45]}>
@@ -819,8 +833,8 @@ export default function Rabbit({ data }: RabbitProps) {
           </mesh>
           {/* Right ear outer */}
           <mesh position={[0.055, 0.55, 0.2]} rotation={[0.2, 0, 0.15]} scale={[1.4, 1, 0.5]}>
-            <capsuleGeometry args={[0.035, 0.26, 5, 5]} />
-            <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a87e52'} />
+            <capsuleGeometry args={[0.035, 0.26, 4, 4]} />
+            <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a87e52'} />
           </mesh>
           {/* Right ear inner */}
           <mesh position={[0.052, 0.55, 0.205]} rotation={[0.2, 0, 0.15]} scale={[1.3, 1, 0.45]}>
@@ -831,62 +845,62 @@ export default function Rabbit({ data }: RabbitProps) {
           <group ref={flLegRef} position={[-0.08, 0.06, 0.1]}>
             <mesh castShadow>
               <boxGeometry args={[0.05, 0.12, 0.05]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
             <mesh position={[0, -0.07, 0.01]}>
               <sphereGeometry args={[0.028, 5, 5]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
           </group>
           {/* Front-right leg */}
           <group ref={frLegRef} position={[0.08, 0.06, 0.1]}>
             <mesh castShadow>
               <boxGeometry args={[0.05, 0.12, 0.05]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
             <mesh position={[0, -0.07, 0.01]}>
               <sphereGeometry args={[0.028, 5, 5]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
           </group>
           {/* Back-left leg (larger, powerful hind leg) */}
           <group ref={blLegRef} position={[-0.1, 0.08, -0.12]}>
             <mesh castShadow>
               <boxGeometry args={[0.07, 0.1, 0.08]} />
-              <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+              <meshStandardMaterial color={visualPregnant ? '#dba0b8' : '#c49a6c'} />
             </mesh>
             <mesh castShadow position={[0, -0.1, 0.02]}>
               <boxGeometry args={[0.05, 0.12, 0.055]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
             <mesh position={[0, -0.17, 0.04]}>
               <boxGeometry args={[0.05, 0.025, 0.08]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
           </group>
           {/* Back-right leg (larger, powerful hind leg) */}
           <group ref={brLegRef} position={[0.1, 0.08, -0.12]}>
             <mesh castShadow>
               <boxGeometry args={[0.07, 0.1, 0.08]} />
-              <meshStandardMaterial color={data.pregnant ? '#dba0b8' : '#c49a6c'} />
+              <meshStandardMaterial color={visualPregnant ? '#dba0b8' : '#c49a6c'} />
             </mesh>
             <mesh castShadow position={[0, -0.1, 0.02]}>
               <boxGeometry args={[0.05, 0.12, 0.055]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
             <mesh position={[0, -0.17, 0.04]}>
               <boxGeometry args={[0.05, 0.025, 0.08]} />
-              <meshStandardMaterial color={data.pregnant ? '#c8899a' : '#a88560'} />
+              <meshStandardMaterial color={visualPregnant ? '#c8899a' : '#a88560'} />
             </mesh>
           </group>
           {/* Tail - fluffy cotton ball */}
           <mesh position={[0, 0.26, -0.28]}>
-            <sphereGeometry args={[0.065, 8, 8]} />
+            <sphereGeometry args={[0.065, 6, 6]} />
             <meshStandardMaterial color="#f0ebe5" />
           </mesh>
         </group>
         {/* Soft contact shadow on ground */}
-        <mesh position={[0, -data.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, -initData.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.35, 16]} />
           <shaderMaterial
             transparent

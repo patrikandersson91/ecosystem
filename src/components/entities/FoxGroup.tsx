@@ -1,13 +1,13 @@
-import { useEcosystem } from '../../state/ecosystem-context.tsx'
+import { useFoxIds } from '../../state/ecosystem-context.tsx'
 import Fox from './Fox.tsx'
 
 export default function FoxGroup() {
-  const { foxes } = useEcosystem()
+  const foxIds = useFoxIds()
 
   return (
     <>
-      {foxes.map(fox => (
-        <Fox key={fox.id} data={fox} />
+      {foxIds.map(id => (
+        <Fox key={id} id={id} />
       ))}
     </>
   )

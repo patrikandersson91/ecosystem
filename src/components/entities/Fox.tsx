@@ -1,9 +1,8 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import type { Group } from 'three';
 import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
-import type { FoxState } from '../../types/ecosystem.ts';
 import {
   AGGRO_RADIUS,
   MAX_SPEED_FOX,
@@ -24,7 +23,7 @@ import { useSteering } from '../../hooks/useSteering.ts';
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
 import { useMovementInput } from '../../hooks/useMovementInput.ts';
 import {
-  useEcosystem,
+  useEcosystemRef,
   useEcosystemDispatch,
 } from '../../state/ecosystem-context.tsx';
 import { useFollow } from '../../state/follow-context.tsx';
@@ -38,7 +37,7 @@ import IntentionOverlay from './IntentionOverlay.tsx';
 import { useDebug } from '../../state/debug-context.tsx';
 
 interface FoxProps {
-  data: FoxState;
+  id: string;
 }
 
 const MATING_PAUSE_DURATION = 2.5;
@@ -46,7 +45,7 @@ const FOX_HUNGER_RATE = 0.0011;
 const FOX_THIRST_RATE = 0.01;
 const FOX_OBSTACLE_QUERY_RADIUS = 1.4;
 
-export default function Fox({ data }: FoxProps) {
+export default function Fox({ id }: FoxProps) {
   const groupRef = useRef<Group>(null!);
   const tailRef = useRef<Group>(null!);
   const camera = useThree((threeState) => threeState.camera);
@@ -54,30 +53,33 @@ export default function Fox({ data }: FoxProps) {
   const frLegRef = useRef<Group>(null!);
   const blLegRef = useRef<Group>(null!);
   const brLegRef = useRef<Group>(null!);
-  const state = useEcosystem();
+  const stateRef = useEcosystemRef();
   const dispatch = useEcosystemDispatch();
   const { followTarget, setFollowTarget } = useFollow();
   const { getMovementInput } = useMovementInput();
   const { spawnBlood } = useDebug();
 
-  const position = useRef(new Vector3(...data.position));
-  const velocity = useRef(new Vector3(...data.velocity));
+  // Snapshot initial data (stable, won't re-render)
+  const initData = useMemo(() => stateRef.current.foxes.find(f => f.id === id)!, []);
+  const sex = initData.sex;
+  const [visualAdult, setVisualAdult] = useState(initData.isAdult);
+
+  const position = useRef(new Vector3(...initData.position));
+  const velocity = useRef(new Vector3(...initData.velocity));
   const syncTimer = useRef(0);
 
   // Reproductive state
-  const pregnantRef = useRef(data.pregnant);
+  const pregnantRef = useRef(initData.pregnant);
+  const isAdultRef = useRef(initData.isAdult);
   const matingCooldownRef = useRef(0);
   const matingPauseRef = useRef(0);
-
-  // Sync pregnancy from state
-  pregnantRef.current = data.pregnant;
 
   // Debug intention tracking
   const intentionRef = useRef('Wandering');
   const intentionTargetRef = useRef<Vector3 | null>(null);
   const effectiveSightRef = useRef(AGGRO_RADIUS);
 
-  const babySpeedScale = data.isAdult ? 1 : 0.65;
+  const babySpeedScale = initData.isAdult ? 1 : 0.65;
   const { seek, wander, applyForces } = useSteering({
     maxSpeed: MAX_SPEED_FOX * babySpeedScale,
     maxForce: 6,
@@ -92,10 +94,10 @@ export default function Fox({ data }: FoxProps) {
     hungerRef,
     thirstRef,
   } = useEntityNeeds({
-    id: data.id,
+    id: id,
     entityType: 'fox',
-    hunger: data.hunger,
-    thirst: data.thirst,
+    hunger: initData.hunger,
+    thirst: initData.thirst,
     hungerRate: FOX_HUNGER_RATE,
     thirstRate: FOX_THIRST_RATE,
   });
@@ -108,6 +110,7 @@ export default function Fox({ data }: FoxProps) {
   const upAxis = useMemo(() => new Vector3(0, 1, 0), []);
 
   useFrame((_frameState, rawDelta) => {
+    const state = stateRef.current;
     if (state.paused) return;
 
     const delta = rawDelta * state.speed;
@@ -126,7 +129,7 @@ export default function Fox({ data }: FoxProps) {
     const pos = position.current;
     const vel = velocity.current;
     const isPlayerControlled =
-      followTarget?.type === 'fox' && followTarget.id === data.id;
+      followTarget?.type === 'fox' && followTarget.id === id;
     const effectiveAggroRadius =
       AGGRO_RADIUS * getSightMultiplier(state.timeOfDay);
     effectiveSightRef.current = effectiveAggroRadius;
@@ -210,7 +213,7 @@ export default function Fox({ data }: FoxProps) {
         syncTimer.current = 0;
         dispatch({
           type: 'UPDATE_ENTITY_POSITION',
-          id: data.id,
+          id: id,
           entityType: 'fox',
           position: [pos.x, 0.5, pos.z],
           velocity: [vel.x, vel.y, vel.z],
@@ -234,7 +237,7 @@ export default function Fox({ data }: FoxProps) {
         syncTimer.current = 0;
         dispatch({
           type: 'UPDATE_ENTITY_POSITION',
-          id: data.id,
+          id: id,
           entityType: 'fox',
           position: [pos.x, 0.5, pos.z],
           velocity: [0, 0, 0],
@@ -270,20 +273,22 @@ export default function Fox({ data }: FoxProps) {
           hungerRef.current = Math.min(1, hungerRef.current + mealValue);
           dispatch({
             type: 'UPDATE_ENTITY_NEEDS',
-            id: data.id,
+            id: id,
             entityType: 'fox',
             hunger: hungerRef.current,
             thirst: needs.thirst,
           });
 
           // Baby fox grows up after first kill
-          if (!data.isAdult) {
-            dispatch({ type: 'FOX_GROW_UP', id: data.id });
+          if (!isAdultRef.current) {
+            dispatch({ type: 'FOX_GROW_UP', id: id });
           }
 
           // Pregnant female tracks meals — needs 2 kills to give birth
-          if (pregnantRef.current && data.sex === 'female') {
-            const newMeals = (data.mealsWhilePregnant || 0) + 1;
+          if (pregnantRef.current && sex === 'female') {
+            const me = state.foxes.find(f => f.id === id);
+            const currentMeals = me?.mealsWhilePregnant || 0;
+            const newMeals = currentMeals + 1;
             if (newMeals >= 2) {
               pregnantRef.current = false;
               const foxLitterSize =
@@ -321,14 +326,14 @@ export default function Fox({ data }: FoxProps) {
             // Update meal count in state
             dispatch({
               type: 'UPDATE_ENTITY_NEEDS',
-              id: data.id,
+              id: id,
               entityType: 'fox',
               hunger: hungerRef.current,
               thirst: needs.thirst,
             });
             dispatch({
               type: 'FOX_PREGNANCY_MEAL',
-              id: data.id,
+              id: id,
               mealsWhilePregnant: newMeals >= 2 ? 0 : newMeals,
               pregnant: newMeals < 2,
             });
@@ -345,12 +350,12 @@ export default function Fox({ data }: FoxProps) {
       intentionTargetRef.current = tempTarget.clone();
 
       if (pos.distanceTo(tempTarget) < 1.0) {
-        dispatch({ type: 'DRINK', entityId: data.id, entityType: 'fox' });
+        dispatch({ type: 'DRINK', entityId: id, entityType: 'fox' });
       }
 
       // ── 3. SEEK MATE: well-fed, adult, not pregnant, cooldown expired ──
     } else if (
-      data.isAdult &&
+      isAdultRef.current &&
       !pregnantRef.current &&
       matingCooldownRef.current <= 0 &&
       hungerRef.current > 0.65 &&
@@ -359,11 +364,11 @@ export default function Fox({ data }: FoxProps) {
     ) {
       const eligibleMates = state.foxes.filter(
         (f) =>
-          f.id !== data.id &&
+          f.id !== id &&
           f.alive &&
           f.isAdult &&
           !f.pregnant &&
-          f.sex !== data.sex,
+          f.sex !== sex,
       );
       const nearbyMates = entitiesInRadius(
         [pos.x, pos.y, pos.z],
@@ -380,12 +385,12 @@ export default function Fox({ data }: FoxProps) {
           intentionTargetRef.current = tempTarget.clone();
 
           // Close enough to mate — only males initiate
-          if (pos.distanceTo(tempTarget) < 1.2 && data.sex === 'male') {
+          if (pos.distanceTo(tempTarget) < 1.2 && sex === 'male') {
             matingCooldownRef.current = FOX_MATING_COOLDOWN;
             matingPauseRef.current = MATING_PAUSE_DURATION;
             dispatch({
               type: 'FOX_MATE',
-              maleId: data.id,
+              maleId: id,
               femaleId: nearestMate.id,
             });
           }
@@ -475,11 +480,21 @@ export default function Fox({ data }: FoxProps) {
       syncTimer.current = 0;
       dispatch({
         type: 'UPDATE_ENTITY_POSITION',
-        id: data.id,
+        id: id,
         entityType: 'fox',
         position: [pos.x, 0.5, pos.z],
         velocity: [vel.x, vel.y, vel.z],
       });
+
+      // Sync visual/logic state from global state
+      const me = state.foxes.find(f => f.id === id);
+      if (me) {
+        pregnantRef.current = me.pregnant;
+        if (me.isAdult !== isAdultRef.current) {
+          isAdultRef.current = me.isAdult;
+          setVisualAdult(me.isAdult);
+        }
+      }
     }
   });
 
@@ -487,31 +502,31 @@ export default function Fox({ data }: FoxProps) {
     <>
       <group
         ref={groupRef}
-        name={`animal-fox-${data.id}`}
+        name={`animal-fox-${id}`}
         onClick={(event) => {
           event.stopPropagation();
-          setFollowTarget({ id: data.id, type: 'fox' });
+          setFollowTarget({ id: id, type: 'fox' });
         }}
         position={[
-          data.position[0],
-          groundHeightAt(data.position[0], data.position[2]) + data.position[1],
-          data.position[2],
+          initData.position[0],
+          groundHeightAt(initData.position[0], initData.position[2]) + initData.position[1],
+          initData.position[2],
         ]}
       >
-        <group scale={data.isAdult ? [1.6, 1.6, 1.6] : [1.0, 1.0, 1.0]}>
+        <group scale={visualAdult ? [1.6, 1.6, 1.6] : [1.0, 1.0, 1.0]}>
           {/* Body - sleek torso */}
           <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
-            <capsuleGeometry args={[0.15, 0.36, 6, 8]} />
+            <capsuleGeometry args={[0.15, 0.36, 4, 6]} />
             <meshStandardMaterial color="#c85a1c" />
           </mesh>
           {/* Chest / underbelly - cream */}
           <mesh position={[0, -0.07, 0.1]} scale={[0.85, 0.6, 1]}>
-            <sphereGeometry args={[0.14, 8, 8]} />
+            <sphereGeometry args={[0.14, 6, 6]} />
             <meshStandardMaterial color="#f0c890" />
           </mesh>
           {/* Head */}
           <mesh castShadow position={[0, 0.1, 0.42]}>
-            <sphereGeometry args={[0.14, 10, 10]} />
+            <sphereGeometry args={[0.14, 6, 6]} />
             <meshStandardMaterial color="#d06820" />
           </mesh>
           {/* Cheek ruff - left */}
@@ -526,7 +541,7 @@ export default function Fox({ data }: FoxProps) {
           </mesh>
           {/* Snout - rounded */}
           <mesh position={[0, 0.04, 0.56]} rotation={[Math.PI / 2, 0, 0]} scale={[0.8, 1, 0.7]}>
-            <capsuleGeometry args={[0.06, 0.14, 5, 8]} />
+            <capsuleGeometry args={[0.06, 0.14, 4, 6]} />
             <meshStandardMaterial color="#e0a060" />
           </mesh>
           {/* Nose */}
@@ -536,32 +551,32 @@ export default function Fox({ data }: FoxProps) {
           </mesh>
           {/* Left eye */}
           <mesh position={[-0.09, 0.16, 0.52]}>
-            <sphereGeometry args={[0.03, 8, 8]} />
+            <sphereGeometry args={[0.03, 6, 6]} />
             <meshStandardMaterial color="#1a1000" />
           </mesh>
           {/* Right eye */}
           <mesh position={[0.09, 0.16, 0.52]}>
-            <sphereGeometry args={[0.03, 8, 8]} />
+            <sphereGeometry args={[0.03, 6, 6]} />
             <meshStandardMaterial color="#1a1000" />
           </mesh>
           {/* Left ear outer */}
           <mesh position={[-0.09, 0.32, 0.38]} rotation={[0.15, 0, -0.2]}>
-            <capsuleGeometry args={[0.04, 0.12, 4, 6]} />
+            <capsuleGeometry args={[0.04, 0.12, 3, 4]} />
             <meshStandardMaterial color="#c85a1c" />
           </mesh>
           {/* Left ear inner */}
           <mesh position={[-0.087, 0.31, 0.385]} rotation={[0.15, 0, -0.2]}>
-            <capsuleGeometry args={[0.025, 0.08, 4, 5]} />
+            <capsuleGeometry args={[0.025, 0.08, 3, 4]} />
             <meshStandardMaterial color="#e8a060" />
           </mesh>
           {/* Right ear outer */}
           <mesh position={[0.09, 0.32, 0.38]} rotation={[0.15, 0, 0.2]}>
-            <capsuleGeometry args={[0.04, 0.12, 4, 6]} />
+            <capsuleGeometry args={[0.04, 0.12, 3, 4]} />
             <meshStandardMaterial color="#c85a1c" />
           </mesh>
           {/* Right ear inner */}
           <mesh position={[0.087, 0.31, 0.385]} rotation={[0.15, 0, 0.2]}>
-            <capsuleGeometry args={[0.025, 0.08, 4, 5]} />
+            <capsuleGeometry args={[0.025, 0.08, 3, 4]} />
             <meshStandardMaterial color="#e8a060" />
           </mesh>
           {/* Front Left Leg */}
@@ -612,28 +627,28 @@ export default function Fox({ data }: FoxProps) {
           <group ref={tailRef} position={[0, 0.05, -0.26]}>
             {/* Base - thick root, dark */}
             <mesh position={[0, 0.02, 0]} castShadow>
-              <sphereGeometry args={[0.08, 8, 8]} />
+              <sphereGeometry args={[0.08, 6, 6]} />
               <meshStandardMaterial color="#a04818" />
             </mesh>
             {/* Mid - bushiest section, rich orange */}
             <mesh position={[0, 0, -0.12]} castShadow scale={[1.15, 0.85, 1.1]}>
-              <sphereGeometry args={[0.1, 8, 8]} />
+              <sphereGeometry args={[0.1, 6, 6]} />
               <meshStandardMaterial color="#c85a1c" />
             </mesh>
             {/* Taper - lighter orange */}
             <mesh position={[0, -0.02, -0.22]} scale={[1, 0.85, 1]}>
-              <sphereGeometry args={[0.08, 8, 8]} />
+              <sphereGeometry args={[0.08, 6, 6]} />
               <meshStandardMaterial color="#d88030" />
             </mesh>
             {/* Tip - white */}
             <mesh position={[0, -0.04, -0.3]}>
-              <sphereGeometry args={[0.06, 8, 8]} />
+              <sphereGeometry args={[0.06, 6, 6]} />
               <meshStandardMaterial color="#f5f0e8" />
             </mesh>
           </group>
         </group>
         {/* Soft contact shadow on ground */}
-        <mesh position={[0, -data.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, -initData.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[0.8, 16]} />
           <shaderMaterial
             transparent

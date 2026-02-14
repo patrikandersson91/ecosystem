@@ -1,13 +1,13 @@
 import { useRef, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useEcosystem } from '../../state/ecosystem-context.tsx'
+import { useEcosystemRef } from '../../state/ecosystem-context.tsx'
 import { useWeatherRefs } from '../../state/weather-refs.tsx'
 import { groundHeightAt } from '../../utils/terrain-height.ts'
 
 // ─── Configuration ──────────────────────────────────────────
 
-const DROP_COUNT = 3000
+const DROP_COUNT = 1500
 const SPLASH_COUNT = 80
 const RAIN_AREA = 70
 const RAIN_HEIGHT = 30
@@ -109,7 +109,7 @@ function resetDrop(d: DropState, camX: number, camZ: number) {
 // ─── Component ──────────────────────────────────────────────
 
 export default function Rain() {
-  const state = useEcosystem()
+  const stateRef = useEcosystemRef()
   const weatherRefs = useWeatherRefs()
   const { camera } = useThree()
 
@@ -173,6 +173,7 @@ export default function Rain() {
   // ─── Frame loop ───────────────────────────────────────────
 
   useFrame((_, rawDelta) => {
+    const state = stateRef.current
     if (state.paused) return
     const delta = rawDelta * state.speed
     const isRaining = weatherRefs.isRaining.current

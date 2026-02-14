@@ -7,7 +7,7 @@ import {
   useEffect,
   useState,
 } from 'react';
-import type { ReactNode, Dispatch } from 'react';
+import type { ReactNode, Dispatch, MutableRefObject } from 'react';
 import type {
   EcosystemState,
   Extinctions,
@@ -24,6 +24,7 @@ import {
   WEATHER_CHANGE_INTERVAL,
   MAX_RABBITS,
   MAX_FOXES,
+  MAX_FLOWERS,
 } from '../types/ecosystem.ts';
 import { isInWater } from '../utils/river-path';
 import { groundHeightAt } from '../utils/terrain-height.ts';
@@ -136,7 +137,7 @@ function ecosystemReducer(
         ),
         foxes: generateFoxes(Math.min(action.config.initialFoxes, MAX_FOXES)),
         moose: generateMoose(action.config.initialMoose),
-        flowers: generateFlowers(action.config.initialFlowers),
+        flowers: generateFlowers(Math.min(action.config.initialFlowers, MAX_FLOWERS)),
         time: 0,
         paused: false,
         weather: {
@@ -372,6 +373,7 @@ function ecosystemReducer(
       return { ...state, foxes: state.foxes.filter((f) => f.id !== action.id) };
 
     case 'SPAWN_FLOWER':
+      if (state.flowers.length >= MAX_FLOWERS) return state;
       return { ...state, flowers: [...state.flowers, action.flower] };
 
     case 'RABBIT_MATE':
@@ -556,6 +558,16 @@ function isSameEcosystemUIState(
   );
 }
 
+// ─── Helpers: stable ID list comparison ─────────────────────
+
+function sameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 // ─── Context ────────────────────────────────────────────────
 
 const EcosystemContext = createContext<EcosystemState>(initialState);
@@ -566,6 +578,19 @@ const EcosystemDispatchContext = createContext<Dispatch<EcosystemAction>>(
   () => {},
 );
 
+// Ref-based context: never triggers re-renders
+const EcosystemRefContext = createContext<MutableRefObject<EcosystemState>>(
+  { current: initialState },
+);
+
+// Stable entity ID list contexts: only update on add/remove
+const RabbitIdsContext = createContext<string[]>([]);
+const FoxIdsContext = createContext<string[]>([]);
+const MooseIdsContext = createContext<string[]>([]);
+
+// Flower list context: only update when flowers array reference changes
+const FlowersContext = createContext<FlowerState[]>([]);
+
 export function EcosystemProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(ecosystemReducer, initialState);
   const [uiState, setUiState] = useState<EcosystemUIState>(() =>
@@ -574,9 +599,31 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   const { recordEvent, recordSnapshot, reset } = useSimulationLog();
   const latestStateRef = useRef(state);
 
-  useEffect(() => {
-    latestStateRef.current = state;
-  }, [state]);
+  // Stable entity ID lists — computed during render, refs keep stable references
+  const prevRabbitIdsRef = useRef<string[]>([]);
+  const prevFoxIdsRef = useRef<string[]>([]);
+  const prevMooseIdsRef = useRef<string[]>([]);
+  const prevFlowersRef = useRef<FlowerState[]>([]);
+
+  // Update ref to latest state synchronously during render
+  latestStateRef.current = state;
+
+  // Derive stable ID lists: same reference when membership hasn't changed
+  const newRabbitIds = state.rabbits.map((r) => r.id);
+  if (!sameIds(prevRabbitIdsRef.current, newRabbitIds)) prevRabbitIdsRef.current = newRabbitIds;
+  const rabbitIds = prevRabbitIdsRef.current;
+
+  const newFoxIds = state.foxes.map((f) => f.id);
+  if (!sameIds(prevFoxIdsRef.current, newFoxIds)) prevFoxIdsRef.current = newFoxIds;
+  const foxIds = prevFoxIdsRef.current;
+
+  const newMooseIds = state.moose.map((m) => m.id);
+  if (!sameIds(prevMooseIdsRef.current, newMooseIds)) prevMooseIdsRef.current = newMooseIds;
+  const mooseIds = prevMooseIdsRef.current;
+
+  // Stable flowers reference
+  if (prevFlowersRef.current !== state.flowers) prevFlowersRef.current = state.flowers;
+  const flowers = prevFlowersRef.current;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -669,18 +716,32 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <EcosystemContext value={state}>
-      <EcosystemUIContext value={uiState}>
-        <EcosystemDispatchContext value={dispatch}>
-          {children}
-        </EcosystemDispatchContext>
-      </EcosystemUIContext>
-    </EcosystemContext>
+    <EcosystemRefContext value={latestStateRef}>
+      <EcosystemContext value={state}>
+        <EcosystemUIContext value={uiState}>
+          <EcosystemDispatchContext value={dispatch}>
+            <RabbitIdsContext value={rabbitIds}>
+              <FoxIdsContext value={foxIds}>
+                <MooseIdsContext value={mooseIds}>
+                  <FlowersContext value={flowers}>
+                    {children}
+                  </FlowersContext>
+                </MooseIdsContext>
+              </FoxIdsContext>
+            </RabbitIdsContext>
+          </EcosystemDispatchContext>
+        </EcosystemUIContext>
+      </EcosystemContext>
+    </EcosystemRefContext>
   );
 }
 
 export function useEcosystem(): EcosystemState {
   return useContext(EcosystemContext);
+}
+
+export function useEcosystemRef(): MutableRefObject<EcosystemState> {
+  return useContext(EcosystemRefContext);
 }
 
 export function useEcosystemDispatch(): Dispatch<EcosystemAction> {
@@ -689,4 +750,20 @@ export function useEcosystemDispatch(): Dispatch<EcosystemAction> {
 
 export function useEcosystemUI(): EcosystemUIState {
   return useContext(EcosystemUIContext);
+}
+
+export function useRabbitIds(): string[] {
+  return useContext(RabbitIdsContext);
+}
+
+export function useFoxIds(): string[] {
+  return useContext(FoxIdsContext);
+}
+
+export function useMooseIds(): string[] {
+  return useContext(MooseIdsContext);
+}
+
+export function useFlowers(): FlowerState[] {
+  return useContext(FlowersContext);
 }

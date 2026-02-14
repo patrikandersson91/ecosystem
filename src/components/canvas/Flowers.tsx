@@ -11,7 +11,7 @@ import {
   DoubleSide,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { useEcosystem } from '../../state/ecosystem-context.tsx'
+import { useFlowers } from '../../state/ecosystem-context.tsx'
 import { groundHeightAt } from '../../utils/terrain-height.ts'
 import type { FlowerState } from '../../types/ecosystem.ts'
 
@@ -152,7 +152,7 @@ function createBush2Flowers(): BufferGeometry {
 type FlowerItem = FlowerState & { hash: number }
 
 export default function Flowers() {
-  const { flowers } = useEcosystem()
+  const flowers = useFlowers()
 
   const [
     geoDaisyPetals, geoDaisyCenter,

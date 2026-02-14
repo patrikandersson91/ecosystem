@@ -3,7 +3,6 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import type { Group } from 'three';
 import { softShadowVert, softShadowFrag } from '../../utils/soft-shadow-material.ts';
-import type { MooseState } from '../../types/ecosystem.ts';
 import {
   MAX_SPEED_MOOSE,
   NEED_THRESHOLD,
@@ -18,7 +17,7 @@ import { useSteering } from '../../hooks/useSteering.ts';
 import { useEntityNeeds } from '../../hooks/useEntityNeeds.ts';
 import { useMovementInput } from '../../hooks/useMovementInput.ts';
 import {
-  useEcosystem,
+  useEcosystemRef,
   useEcosystemDispatch,
 } from '../../state/ecosystem-context.tsx';
 import { useFollow } from '../../state/follow-context.tsx';
@@ -30,14 +29,14 @@ import StatusBar from './StatusBar.tsx';
 import IntentionOverlay from './IntentionOverlay.tsx';
 
 interface MooseProps {
-  data: MooseState;
+  id: string;
 }
 
 const MOOSE_HUNGER_RATE = 0.00025;
 const MOOSE_THIRST_RATE = 0.001;
 const MOOSE_OBSTACLE_QUERY_RADIUS = 1.7;
 
-export default function Moose({ data }: MooseProps) {
+export default function Moose({ id }: MooseProps) {
   const groupRef = useRef<Group>(null!);
   const camera = useThree((threeState) => threeState.camera);
   const flLegRef = useRef<Group>(null!);
@@ -45,13 +44,16 @@ export default function Moose({ data }: MooseProps) {
   const blLegRef = useRef<Group>(null!);
   const brLegRef = useRef<Group>(null!);
   const headRef = useRef<Group>(null!);
-  const state = useEcosystem();
+  const stateRef = useEcosystemRef();
   const dispatch = useEcosystemDispatch();
   const { followTarget, setFollowTarget } = useFollow();
   const { getMovementInput } = useMovementInput();
 
-  const position = useRef(new Vector3(...data.position));
-  const velocity = useRef(new Vector3(...data.velocity));
+  // Snapshot initial data (stable, won't re-render)
+  const initData = useMemo(() => stateRef.current.moose.find(m => m.id === id)!, []);
+
+  const position = useRef(new Vector3(...initData.position));
+  const velocity = useRef(new Vector3(...initData.velocity));
   const syncTimer = useRef(0);
   const targetFlowerIdRef = useRef<string | null>(null);
 
@@ -72,10 +74,10 @@ export default function Moose({ data }: MooseProps) {
     hungerRef,
     thirstRef,
   } = useEntityNeeds({
-    id: data.id,
+    id: id,
     entityType: 'moose',
-    hunger: data.hunger,
-    thirst: data.thirst,
+    hunger: initData.hunger,
+    thirst: initData.thirst,
     hungerRate: MOOSE_HUNGER_RATE,
     thirstRate: MOOSE_THIRST_RATE,
   });
@@ -88,6 +90,7 @@ export default function Moose({ data }: MooseProps) {
   const upAxis = useMemo(() => new Vector3(0, 1, 0), []);
 
   useFrame((_frameState, rawDelta) => {
+    const state = stateRef.current;
     if (state.paused) return;
 
     const delta = rawDelta * state.speed;
@@ -97,7 +100,7 @@ export default function Moose({ data }: MooseProps) {
     const pos = position.current;
     const vel = velocity.current;
     const isPlayerControlled =
-      followTarget?.type === 'moose' && followTarget.id === data.id;
+      followTarget?.type === 'moose' && followTarget.id === id;
     tempForce.set(0, 0, 0);
 
     if (isPlayerControlled) {
@@ -176,7 +179,7 @@ export default function Moose({ data }: MooseProps) {
         syncTimer.current = 0;
         dispatch({
           type: 'UPDATE_ENTITY_POSITION',
-          id: data.id,
+          id: id,
           entityType: 'moose',
           position: [pos.x, 1.1, pos.z],
           velocity: [vel.x, vel.y, vel.z],
@@ -193,7 +196,7 @@ export default function Moose({ data }: MooseProps) {
       intentionTargetRef.current = tempTarget.clone();
 
       if (pos.distanceTo(tempTarget) < 1.2) {
-        dispatch({ type: 'DRINK', entityId: data.id, entityType: 'moose' });
+        dispatch({ type: 'DRINK', entityId: id, entityType: 'moose' });
       }
     } else {
       const aliveFlowers = state.flowers.filter((f) => f.alive);
@@ -222,7 +225,7 @@ export default function Moose({ data }: MooseProps) {
           dispatch({
             type: 'EAT_FLOWER',
             flowerId: targetFlower.id,
-            entityId: data.id,
+            entityId: id,
           });
         }
       } else {
@@ -292,7 +295,7 @@ export default function Moose({ data }: MooseProps) {
       syncTimer.current = 0;
       dispatch({
         type: 'UPDATE_ENTITY_POSITION',
-        id: data.id,
+        id: id,
         entityType: 'moose',
         position: [pos.x, 1.1, pos.z],
         velocity: [vel.x, vel.y, vel.z],
@@ -304,32 +307,32 @@ export default function Moose({ data }: MooseProps) {
     <>
       <group
         ref={groupRef}
-        name={`animal-moose-${data.id}`}
+        name={`animal-moose-${id}`}
         onClick={(event) => {
           event.stopPropagation();
-          setFollowTarget({ id: data.id, type: 'moose' });
+          setFollowTarget({ id: id, type: 'moose' });
         }}
         position={[
-          data.position[0],
-          groundHeightAt(data.position[0], data.position[2]) + data.position[1],
-          data.position[2],
+          initData.position[0],
+          groundHeightAt(initData.position[0], initData.position[2]) + initData.position[1],
+          initData.position[2],
         ]}
       >
         <group scale={[2.2, 2.2, 2.2]}>
           {/* === BODY === */}
           {/* Main torso - compact barrel */}
           <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
-            <capsuleGeometry args={[0.22, 0.28, 8, 12]} />
+            <capsuleGeometry args={[0.22, 0.28, 5, 8]} />
             <meshStandardMaterial color="#5f4026" />
           </mesh>
           {/* Shoulder hump - subtle */}
           <mesh position={[0, 0.1, 0.08]} castShadow scale={[0.85, 0.8, 0.8]}>
-            <sphereGeometry args={[0.18, 10, 10]} />
+            <sphereGeometry args={[0.18, 6, 6]} />
             <meshStandardMaterial color="#543822" />
           </mesh>
           {/* Hip / rump */}
           <mesh position={[0, 0.02, -0.2]} castShadow>
-            <sphereGeometry args={[0.17, 10, 10]} />
+            <sphereGeometry args={[0.17, 6, 6]} />
             <meshStandardMaterial color="#5a3d25" />
           </mesh>
           {/* Lighter belly underside */}
@@ -340,7 +343,7 @@ export default function Moose({ data }: MooseProps) {
 
           {/* === NECK === */}
           <mesh position={[0, 0.12, 0.3]} rotation={[0.7, 0, 0]} castShadow>
-            <capsuleGeometry args={[0.1, 0.2, 6, 8]} />
+            <capsuleGeometry args={[0.1, 0.2, 4, 6]} />
             <meshStandardMaterial color="#5a3d25" />
           </mesh>
 
@@ -348,17 +351,17 @@ export default function Moose({ data }: MooseProps) {
           <group ref={headRef} position={[0, 0.1, 0.52]}>
             {/* Skull */}
             <mesh castShadow>
-              <sphereGeometry args={[0.12, 10, 10]} />
+              <sphereGeometry args={[0.12, 6, 6]} />
               <meshStandardMaterial color="#6f4a2d" />
             </mesh>
             {/* Muzzle - large, bulbous moose nose */}
             <mesh position={[0, -0.05, 0.12]} scale={[0.9, 0.8, 1.15]} castShadow>
-              <sphereGeometry args={[0.08, 10, 10]} />
+              <sphereGeometry args={[0.08, 6, 6]} />
               <meshStandardMaterial color="#7a5638" />
             </mesh>
             {/* Upper lip / nose pad */}
             <mesh position={[0, -0.09, 0.18]} scale={[1.05, 0.65, 0.8]}>
-              <sphereGeometry args={[0.048, 8, 8]} />
+              <sphereGeometry args={[0.048, 6, 6]} />
               <meshStandardMaterial color="#8a6448" />
             </mesh>
             {/* Left nostril */}
@@ -373,49 +376,49 @@ export default function Moose({ data }: MooseProps) {
             </mesh>
             {/* Left eye */}
             <mesh position={[-0.08, 0.04, 0.06]}>
-              <sphereGeometry args={[0.02, 8, 8]} />
+              <sphereGeometry args={[0.02, 6, 6]} />
               <meshStandardMaterial color="#1a1000" />
             </mesh>
             {/* Right eye */}
             <mesh position={[0.08, 0.04, 0.06]}>
-              <sphereGeometry args={[0.02, 8, 8]} />
+              <sphereGeometry args={[0.02, 6, 6]} />
               <meshStandardMaterial color="#1a1000" />
             </mesh>
             {/* Left ear */}
             <mesh position={[-0.09, 0.1, -0.03]} rotation={[0.25, 0, -0.35]}>
-              <capsuleGeometry args={[0.025, 0.06, 4, 6]} />
+              <capsuleGeometry args={[0.025, 0.06, 3, 4]} />
               <meshStandardMaterial color="#5a3d25" />
             </mesh>
             {/* Left ear inner */}
             <mesh position={[-0.088, 0.1, -0.025]} rotation={[0.25, 0, -0.35]}>
-              <capsuleGeometry args={[0.016, 0.04, 4, 5]} />
+              <capsuleGeometry args={[0.016, 0.04, 3, 4]} />
               <meshStandardMaterial color="#7a6048" />
             </mesh>
             {/* Right ear */}
             <mesh position={[0.09, 0.1, -0.03]} rotation={[0.25, 0, 0.35]}>
-              <capsuleGeometry args={[0.025, 0.06, 4, 6]} />
+              <capsuleGeometry args={[0.025, 0.06, 3, 4]} />
               <meshStandardMaterial color="#5a3d25" />
             </mesh>
             {/* Right ear inner */}
             <mesh position={[0.088, 0.1, -0.025]} rotation={[0.25, 0, 0.35]}>
-              <capsuleGeometry args={[0.016, 0.04, 4, 5]} />
+              <capsuleGeometry args={[0.016, 0.04, 3, 4]} />
               <meshStandardMaterial color="#7a6048" />
             </mesh>
             {/* Dewlap (bell) - hanging throat skin */}
             <mesh position={[0, -0.15, 0.03]} rotation={[0.3, 0, 0]}>
-              <capsuleGeometry args={[0.03, 0.08, 4, 6]} />
+              <capsuleGeometry args={[0.03, 0.08, 3, 4]} />
               <meshStandardMaterial color="#6f4a2d" />
             </mesh>
 
             {/* === ANTLERS (palmate) === */}
             {/* Left antler beam */}
             <mesh position={[-0.07, 0.16, -0.02]} rotation={[0.1, 0, -0.45]}>
-              <capsuleGeometry args={[0.016, 0.14, 4, 6]} />
+              <capsuleGeometry args={[0.016, 0.14, 3, 4]} />
               <meshStandardMaterial color="#d6c4a2" />
             </mesh>
             {/* Left palm (flat broad part) */}
             <mesh position={[-0.19, 0.3, -0.02]} rotation={[0, 0, -0.25]} scale={[1.4, 0.25, 1]}>
-              <sphereGeometry args={[0.08, 8, 8]} />
+              <sphereGeometry args={[0.08, 6, 6]} />
               <meshStandardMaterial color="#d6c4a2" />
             </mesh>
             {/* Left tine 1 */}
@@ -440,12 +443,12 @@ export default function Moose({ data }: MooseProps) {
             </mesh>
             {/* Right antler beam */}
             <mesh position={[0.07, 0.16, -0.02]} rotation={[0.1, 0, 0.45]}>
-              <capsuleGeometry args={[0.016, 0.14, 4, 6]} />
+              <capsuleGeometry args={[0.016, 0.14, 3, 4]} />
               <meshStandardMaterial color="#d6c4a2" />
             </mesh>
             {/* Right palm */}
             <mesh position={[0.19, 0.3, -0.02]} rotation={[0, 0, 0.25]} scale={[1.4, 0.25, 1]}>
-              <sphereGeometry args={[0.08, 8, 8]} />
+              <sphereGeometry args={[0.08, 6, 6]} />
               <meshStandardMaterial color="#d6c4a2" />
             </mesh>
             {/* Right tine 1 */}
@@ -534,12 +537,12 @@ export default function Moose({ data }: MooseProps) {
 
           {/* Short tail */}
           <mesh position={[0, 0.08, -0.35]} rotation={[0.6, 0, 0]}>
-            <capsuleGeometry args={[0.035, 0.06, 4, 6]} />
+            <capsuleGeometry args={[0.035, 0.06, 3, 4]} />
             <meshStandardMaterial color="#5a3d25" />
           </mesh>
         </group>
         {/* Soft contact shadow on ground */}
-        <mesh position={[0, -data.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, -initData.position[1] + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[1.5, 16]} />
           <shaderMaterial
             transparent

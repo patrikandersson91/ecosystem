@@ -1,7 +1,8 @@
 import { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
-import type { Mesh, MeshBasicMaterial } from 'three'
+import { Vector3 } from 'three'
+import type { Mesh, MeshBasicMaterial, Group } from 'three'
 
 interface StatusBarProps {
   hungerRef: React.RefObject<number>
@@ -12,13 +13,27 @@ interface StatusBarProps {
 const BAR_WIDTH = 0.6
 const BAR_HEIGHT = 0.05
 const BAR_GAP = 0.02
+const VISIBILITY_DISTANCE = 30
+
+const _tempVec = new Vector3()
 
 export default function StatusBar({ hungerRef, thirstRef, yOffset = 1.0 }: StatusBarProps) {
+  const groupRef = useRef<Group>(null!)
   const hungerFillRef = useRef<Mesh>(null!)
   const thirstFillRef = useRef<Mesh>(null!)
   const hungerMatRef = useRef<MeshBasicMaterial>(null!)
+  const camera = useThree((s) => s.camera)
 
   useFrame(() => {
+    if (!groupRef.current) return
+
+    // Distance-based visibility: hide when zoomed out
+    groupRef.current.getWorldPosition(_tempVec)
+    const dist = camera.position.distanceTo(_tempVec)
+    const visible = dist < VISIBILITY_DISTANCE
+    groupRef.current.visible = visible
+    if (!visible) return
+
     const h = Math.max(0.001, hungerRef.current)
     const t = Math.max(0.001, thirstRef.current)
 
@@ -38,7 +53,7 @@ export default function StatusBar({ hungerRef, thirstRef, yOffset = 1.0 }: Statu
   const bottomY = -(BAR_GAP / 2 + BAR_HEIGHT / 2)
 
   return (
-    <Billboard position={[0, yOffset, 0]}>
+    <Billboard ref={groupRef} position={[0, yOffset, 0]}>
       {/* Hunger background */}
       <mesh position={[0, topY, 0]}>
         <planeGeometry args={[BAR_WIDTH, BAR_HEIGHT]} />

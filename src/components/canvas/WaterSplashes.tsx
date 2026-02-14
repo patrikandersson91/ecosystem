@@ -1,7 +1,7 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useEcosystem } from '../../state/ecosystem-context.tsx'
+import { useEcosystemRef } from '../../state/ecosystem-context.tsx'
 import { isInWater } from '../../utils/river-path.ts'
 
 /** Max entities we track at once */
@@ -103,7 +103,7 @@ interface SplashSlot {
 // ─── Component ────────────────────────────────────────────────
 
 export default function WaterSplashes() {
-  const state = useEcosystem()
+  const stateRef = useEcosystemRef()
 
   // Track per-entity ripple spawn timers
   const entityTimers = useRef<Map<string, number>>(new Map())
@@ -208,6 +208,7 @@ export default function WaterSplashes() {
   }, [])
 
   useFrame((_s, delta) => {
+    const state = stateRef.current
     if (state.paused) return
 
     // Update time of day lighting

@@ -151,11 +151,14 @@ export default function WeatherSystem() {
   const cameraXZ = useMemo(() => new Vector3(), []);
   const tempColor = useMemo(() => new Color(), []);
   const tempColor2 = useMemo(() => new Color(), []);
+  const rainSkyColor = useMemo(() => new Color('#4a5568'), []);
+  const rainFogColor = useMemo(() => new Color('#6b7b8d'), []);
   const simTimeRef = useRef(state.time);
   const timeOfDayRef = useRef(state.timeOfDay);
   const uiSyncTimerRef = useRef(0);
   const pendingTickDeltaRef = useRef(0);
   const weatherTimerRef = useRef(0);
+  const visualUpdateAccum = useRef(0);
 
   useEffect(() => {
     simTimeRef.current = state.time;
@@ -204,10 +207,15 @@ export default function WeatherSystem() {
     const isRaining = state.weather.type === 'rainy';
     const rainDim = isRaining ? 0.65 + (1 - state.weather.intensity) * 0.35 : 1.0;
 
-    // Update shared weather refs
+    // Update shared weather refs (always — cheap)
     weatherRefs.timeOfDay.current = t;
     weatherRefs.isRaining.current = isRaining;
     weatherRefs.rainIntensity.current = state.weather.intensity;
+
+    // Throttle visual updates to ~20Hz (every 50ms) — smooth enough for gradual color changes
+    visualUpdateAccum.current += rawDelta;
+    if (visualUpdateAccum.current < 0.05) return;
+    visualUpdateAccum.current = 0;
 
     // Sun position — realistic east-to-west arc
     const dayStart = 0.08;
@@ -278,7 +286,7 @@ export default function WeatherSystem() {
     // Sky background color
     getSkyColor(t, tempColor);
     if (isRaining) {
-      tempColor.lerp(new Color('#4a5568'), state.weather.intensity * 0.5);
+      tempColor.lerp(rainSkyColor, state.weather.intensity * 0.5);
     }
     scene.background = tempColor;
     weatherRefs.skyColor.current.copy(tempColor);
@@ -286,7 +294,7 @@ export default function WeatherSystem() {
     // Fog
     getFogColor(t, tempColor);
     if (isRaining) {
-      tempColor.lerp(new Color('#6b7b8d'), state.weather.intensity * 0.3);
+      tempColor.lerp(rainFogColor, state.weather.intensity * 0.3);
     }
     if (scene.fog && 'color' in scene.fog) {
       (scene.fog as any).color.copy(tempColor);
@@ -325,16 +333,16 @@ export default function WeatherSystem() {
         position={[15, 35, -15]}
         intensity={1.2}
         castShadow
-        shadow-mapSize-width={4096}
-        shadow-mapSize-height={4096}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.4}
-        shadow-radius={3}
-        shadow-camera-far={200}
-        shadow-camera-left={-80}
-        shadow-camera-right={80}
-        shadow-camera-top={80}
-        shadow-camera-bottom={-80}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.5}
+        shadow-radius={4}
+        shadow-camera-far={150}
+        shadow-camera-left={-60}
+        shadow-camera-right={60}
+        shadow-camera-top={60}
+        shadow-camera-bottom={-60}
       />
 
       {/* Sun mesh for god rays — emissive sphere positioned at sun direction */}
