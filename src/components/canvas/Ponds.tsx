@@ -109,12 +109,16 @@ export default function Ponds() {
               position={[0, 0.06, 0]}
             >
               <shapeGeometry args={[pondShapes[i].water]} />
-              <meshStandardMaterial
-                color="#4f8497"
+              <meshPhysicalMaterial
+                color="#4a8da0"
                 transparent
-                opacity={0.5}
-                roughness={0.22}
-                metalness={0.03}
+                opacity={0.55}
+                roughness={0.08}
+                metalness={0.02}
+                transmission={0.3}
+                ior={1.33}
+                thickness={1.5}
+                envMapIntensity={1.2}
                 depthWrite={false}
               />
             </mesh>

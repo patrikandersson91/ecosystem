@@ -2,22 +2,17 @@ import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useEcosystem } from '../../state/ecosystem-context'
-/* eslint-disable react-hooks/exhaustive-deps */
-// @ts-ignore
-/* eslint-disable */
+import { useWeatherRefs } from '../../state/weather-refs.tsx'
 import { riverCenterZ, RIVER_HALF_LENGTH, RIVER_WIDTH, RIVER_MAX_DEPTH } from '../../utils/river-path'
 import { WORLD_SCALE } from '../../types/ecosystem.ts'
-
 const SEGMENTS_X = Math.max(128, Math.floor(128 * WORLD_SCALE))
 const SEGMENTS_Z = 16
 const RIVER_LENGTH = RIVER_HALF_LENGTH * 2
-
 const PARTICLE_COUNT = Math.floor(1500 * WORLD_SCALE)
 
 // ─── Riverbed shaders ─────────────────────────────────────────
 const riverbedVert = /* glsl */ `
   varying float vDepth;
-
   void main() {
     vDepth = -position.y;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -26,9 +21,7 @@ const riverbedVert = /* glsl */ `
 
 const riverbedFrag = /* glsl */ `
   varying float vDepth;
-
   void main() {
-    // Dark blue-brown riverbed, darker with depth
     vec3 shallow = vec3(0.18, 0.16, 0.14);
     vec3 deep = vec3(0.05, 0.06, 0.08);
     float depthFactor = clamp(vDepth / 1.8, 0.0, 1.0);
@@ -37,13 +30,15 @@ const riverbedFrag = /* glsl */ `
   }
 `
 
-// ─── Water surface shaders ─────────────────────────────────────
+// ─── Water surface shaders (enhanced with Fresnel, specular, sky reflection) ───
 
 const waterVert = /* glsl */ `
   varying vec2 vUv;
   varying float vEdge;
   varying float vWaveHeight;
   varying float vViewDepth;
+  varying vec3 vWorldPos;
+  varying vec3 vNormal;
   uniform float uTime;
 
   void main() {
@@ -58,12 +53,110 @@ const waterVert = /* glsl */ `
     pos.y += totalWave;
     vWaveHeight = totalWave;
 
+    // Compute normal from wave derivatives
+    float dWdx = cos(pos.x * 0.5 + uTime * 1.2) * 0.5 * 0.08
+               + cos(pos.x * 0.8 + pos.z * 0.4 + uTime * 0.9) * 0.8 * 0.05
+               - sin(pos.x * 1.5 - pos.z * 0.8 + uTime * 2.0) * 1.5 * 0.025;
+    float dWdz = cos(pos.x * 0.8 + pos.z * 0.4 + uTime * 0.9) * 0.4 * 0.05
+               + sin(pos.x * 1.5 - pos.z * 0.8 + uTime * 2.0) * 0.8 * 0.025;
+    dWdx *= (1.0 - vEdge * 0.7);
+    dWdz *= (1.0 - vEdge * 0.7);
+    vNormal = normalize(vec3(-dWdx, 1.0, -dWdz));
+
+    // Approximate world position (river group offset is small, pos ~= worldPos)
+    vWorldPos = pos;
+
     vec4 mv = modelViewMatrix * vec4(pos, 1.0);
     vViewDepth = -mv.z;
     gl_Position = projectionMatrix * mv;
   }
 `
 
+const waterFrag = /* glsl */ `
+  uniform float uTime;
+  uniform vec3 uDeepColor;
+  uniform vec3 uShallowColor;
+  uniform vec3 uFoamColor;
+  uniform float uOpacity;
+  uniform float uLightIntensity;
+  uniform vec3 uSunPosition;
+  uniform vec3 uSkyColor;
+  uniform vec3 uCameraPosition;
+  uniform vec3 uSunColor;
+
+  varying vec2 vUv;
+  varying float vEdge;
+  varying float vWaveHeight;
+  varying float vViewDepth;
+  varying vec3 vWorldPos;
+  varying vec3 vNormal;
+
+  void main() {
+    // Flow UVs
+    float flowSpeed = 0.06;
+    vec2 flow1 = vec2(vUv.x + uTime * flowSpeed, vUv.y);
+    vec2 flow2 = vec2(vUv.x + uTime * flowSpeed * 0.7, vUv.y * 1.3 + uTime * 0.008);
+
+    float r1 = sin(flow1.x * 20.0 + flow1.y * 8.0) * 0.5 + 0.5;
+    float r2 = sin(flow2.x * 15.0 - flow2.y * 12.0 + 0.5) * 0.5 + 0.5;
+    float ripple = r1 * r2;
+
+    float depth = 1.0 - vEdge;
+    float depthCurve = depth * depth;
+
+    // Base water color
+    vec3 color = mix(uShallowColor, uDeepColor, depthCurve * 0.8 + ripple * 0.1);
+    float distFade = smoothstep(35.0, 170.0, vViewDepth);
+
+    // ─── Fresnel effect ─────────────────────────
+    vec3 viewDir = normalize(uCameraPosition - vWorldPos);
+    vec3 normal = normalize(vNormal);
+    float fresnel = pow(1.0 - max(dot(viewDir, normal), 0.0), 3.0);
+    fresnel = clamp(fresnel, 0.0, 1.0);
+
+    // Mix sky reflection based on Fresnel
+    vec3 reflectionColor = uSkyColor * 0.8 + vec3(0.1);
+    color = mix(color, reflectionColor, fresnel * 0.55);
+
+    // ─── Sun specular highlight ─────────────────
+    vec3 lightDir = normalize(uSunPosition);
+    vec3 halfVec = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfVec), 0.0), 128.0);
+    // Broader secondary specular
+    float spec2 = pow(max(dot(normal, halfVec), 0.0), 16.0);
+    vec3 specColor = uSunColor * (spec * 1.8 + spec2 * 0.15) * uLightIntensity * depth;
+    color += specColor;
+
+    // Softer highlights at distance
+    float specDistFade = 1.0 - distFade * 0.65;
+    float baseSpec = pow(ripple, 8.0) * 0.12 * depth * specDistFade;
+    color += vec3(baseSpec);
+
+    // Foam at edges
+    float foamMask = smoothstep(0.15, 0.0, depth - ripple * 0.1);
+    color = mix(color, uFoamColor, foamMask * 0.3 * (1.0 - distFade * 0.6));
+
+    // Whitecaps on wave crests
+    float crest = smoothstep(0.06, 0.14, vWaveHeight);
+    color = mix(color, uFoamColor, crest * 0.18 * (1.0 - distFade * 0.7));
+
+    // Distant tint
+    vec3 distantTint = mix(uShallowColor, uDeepColor, 0.5);
+    color = mix(color, distantTint, distFade * 0.22);
+
+    // Apply light intensity
+    color *= uLightIntensity;
+
+    // Opacity fade at edges
+    float edgeFade = smoothstep(0.0, 0.1, depth);
+    float alpha = uOpacity * edgeFade * mix(1.0, 0.72, distFade);
+
+    // Boost alpha slightly where specular is strong (makes sun reflection pop)
+    alpha = min(1.0, alpha + spec * 0.4);
+
+    gl_FragColor = vec4(color, alpha);
+  }
+`
 
 // ─── Particle shaders ──────────────────────────────────────────
 
@@ -76,29 +169,22 @@ const pointVert = /* glsl */ `
   attribute float aVelocity;
   attribute float aPhase;
   attribute float aOffsetZ;
-  
+
   varying float vAlpha;
 
-  // Function to calculate center Z (matches JS implementation)
   float getRiverCenterZ(float x) {
     return 6.0 * sin(x * 0.1) + 3.0 * sin(x * 0.17 + 1.2);
   }
 
   void main() {
     vAlpha = aAlpha;
-    
-    // Calculate X position with wrap-around
     float xDist = aVelocity * uTime;
     float xBase = position.x;
     float x = mod(xBase - xDist + uRiverLength * 0.5, uRiverLength) - uRiverLength * 0.5;
-    
-    // Calculate Z position based on river curve
     float cz = getRiverCenterZ(x);
     float z = cz + aOffsetZ;
-    
-    // Calculate Y (bobbing) above the new water level
     float y = 0.12 + sin(uTime * 2.0 + aPhase) * 0.025;
-    
+
     vec4 mv = modelViewMatrix * vec4(x, y, z, 1.0);
     gl_PointSize = aSize * (80.0 / -mv.z);
     gl_Position = projectionMatrix * mv;
@@ -114,8 +200,6 @@ const pointFrag = /* glsl */ `
     float d = length(gl_PointCoord - vec2(0.5));
     if (d > 0.5) discard;
     float a = vAlpha * (1.0 - smoothstep(0.1, 0.5, d));
-    
-    // Darken particles at night
     vec3 finalColor = uColor * uLightIntensity;
     gl_FragColor = vec4(finalColor, a);
   }
@@ -126,10 +210,11 @@ const pointFrag = /* glsl */ `
 export default function River() {
   const timeRef = useRef(0)
   const state = useEcosystem()
+  const weatherRefs = useWeatherRefs()
 
-  // --- riverbed mesh — narrower than the water so edges never show ---
+  // --- riverbed mesh ---
   const { riverbedGeo, riverbedMat } = useMemo(() => {
-    const BED_WIDTH_FACTOR = 0.75 // only 75% of river width
+    const BED_WIDTH_FACTOR = 0.75
     const positions: number[] = []
     const uvs: number[] = []
     const indices: number[] = []
@@ -143,7 +228,6 @@ export default function River() {
         const z = cz + (tz - 0.5) * RIVER_WIDTH * BED_WIDTH_FACTOR
         const edgeDist = Math.abs(tz - 0.5) * 2
         const depthT = 1 - edgeDist
-        // Edges sit well below surface so nothing pokes through
         const y = -RIVER_MAX_DEPTH * depthT * depthT - 0.1
         positions.push(x, y, z)
         uvs.push(tx * 10, tz)
@@ -211,65 +295,15 @@ export default function River() {
         uDeepColor: { value: new THREE.Color('#2a5b70') },
         uShallowColor: { value: new THREE.Color('#5f96a7') },
         uFoamColor: { value: new THREE.Color('#dce8ec') },
-        uOpacity: { value: 0.64 },
+        uOpacity: { value: 0.68 },
         uLightIntensity: { value: 1.0 },
+        uSunPosition: { value: new THREE.Vector3(0, 35, -15) },
+        uSkyColor: { value: new THREE.Color('#87ceeb') },
+        uCameraPosition: { value: new THREE.Vector3() },
+        uSunColor: { value: new THREE.Color('#fffff0') },
       },
       vertexShader: waterVert,
-      fragmentShader: /* glsl */ `
-        uniform float uTime;
-        uniform vec3 uDeepColor;
-        uniform vec3 uShallowColor;
-        uniform vec3 uFoamColor;
-        uniform float uOpacity;
-        uniform float uLightIntensity;
-        varying vec2 vUv;
-        varying float vEdge;
-        varying float vWaveHeight;
-        varying float vViewDepth;
-
-        void main() {
-          // Flow UVs — everything scrolls in one direction
-          float flowSpeed = 0.06;
-          vec2 flow1 = vec2(vUv.x + uTime * flowSpeed, vUv.y);
-          vec2 flow2 = vec2(vUv.x + uTime * flowSpeed * 0.7, vUv.y * 1.3 + uTime * 0.008);
-
-          float r1 = sin(flow1.x * 20.0 + flow1.y * 8.0) * 0.5 + 0.5;
-          float r2 = sin(flow2.x * 15.0 - flow2.y * 12.0 + 0.5) * 0.5 + 0.5;
-          float ripple = r1 * r2;
-
-          float depth = 1.0 - vEdge; // 1 at center, 0 at edge
-          float depthCurve = depth * depth;
-
-          // Base water color
-          vec3 color = mix(uShallowColor, uDeepColor, depthCurve * 0.8 + ripple * 0.1);
-          float distFade = smoothstep(35.0, 170.0, vViewDepth);
-
-          // Softer highlights so distant water stays calm and transparent.
-          float spec = pow(ripple, 8.0) * 0.16 * depth * (1.0 - distFade * 0.65);
-          color += vec3(spec);
-
-          // Foam at edges (where depth is low)
-          float foamMask = smoothstep(0.15, 0.0, depth - ripple * 0.1); // High near edges
-          color = mix(color, uFoamColor, foamMask * 0.3 * (1.0 - distFade * 0.6));
-
-          // Whitecaps on wave crests
-          float crest = smoothstep(0.06, 0.14, vWaveHeight);
-          color = mix(color, uFoamColor, crest * 0.18 * (1.0 - distFade * 0.7));
-
-          // Distant water shifts gently toward mid-tone and less saturation.
-          vec3 distantTint = mix(uShallowColor, uDeepColor, 0.5);
-          color = mix(color, distantTint, distFade * 0.22);
-
-          // Apply light intensity (reaction to day/night)
-          color *= uLightIntensity;
-
-          // Opacity fade at very edges
-          float edgeFade = smoothstep(0.0, 0.1, depth);
-          float alpha = uOpacity * edgeFade * mix(1.0, 0.72, distFade);
-
-          gl_FragColor = vec4(color, alpha);
-        }
-      `,
+      fragmentShader: waterFrag,
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false,
@@ -288,11 +322,9 @@ export default function River() {
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const x = (Math.random() - 0.5) * RIVER_LENGTH
-      // Position x holds the initial x. y, z unused for position input (z calc in shader)
       pos[i * 3] = x
-      pos[i * 3 + 1] = 0 
-      pos[i * 3 + 2] = 0 
-      
+      pos[i * 3 + 1] = 0
+      pos[i * 3 + 2] = 0
       sizes[i] = 0.12 + Math.random() * 0.28
       alphas[i] = 0.06 + Math.random() * 0.12
       vel[i] = 1.0 + Math.random() * 2.5
@@ -309,11 +341,11 @@ export default function River() {
     geo.setAttribute('aOffsetZ', new THREE.Float32BufferAttribute(offsetZ, 1))
 
     const mat = new THREE.ShaderMaterial({
-      uniforms: { 
+      uniforms: {
         uColor: { value: new THREE.Color('#ffffff') },
         uTime: { value: 0 },
         uRiverLength: { value: RIVER_LENGTH },
-        uLightIntensity: { value: 1.0 }
+        uLightIntensity: { value: 1.0 },
       },
       vertexShader: pointVert,
       fragmentShader: pointFrag,
@@ -325,30 +357,32 @@ export default function River() {
   }, [])
 
   // --- animation loop ---
-  useFrame((_s, delta) => {
+  useFrame(({ camera }, delta) => {
     timeRef.current += delta
     const t = timeRef.current
 
     waterMat.uniforms.uTime.value = t
     particleMat.uniforms.uTime.value = t
 
-    // Calculate light intensity from time of day
-    // Night: 0.2, Day: 1.0. Transitions at 0.1 and 0.7
+    // Light intensity from time of day
     const timeOfDay = state.timeOfDay
     let intensity = 0.25
     if (timeOfDay > 0.08 && timeOfDay < 0.2) {
-      // Dawn
       intensity = 0.25 + ((timeOfDay - 0.08) / 0.12) * 0.75
     } else if (timeOfDay >= 0.2 && timeOfDay < 0.7) {
-      // Day
       intensity = 1.0
     } else if (timeOfDay >= 0.7 && timeOfDay < 0.82) {
-      // Dusk
       intensity = 1.0 - ((timeOfDay - 0.7) / 0.12) * 0.75
     }
-    
+
     waterMat.uniforms.uLightIntensity.value = intensity
     particleMat.uniforms.uLightIntensity.value = intensity
+
+    // Update sun/sky/camera uniforms from weather refs
+    waterMat.uniforms.uSunPosition.value.copy(weatherRefs.sunPosition.current)
+    waterMat.uniforms.uSkyColor.value.copy(weatherRefs.skyColor.current)
+    waterMat.uniforms.uSunColor.value.copy(weatherRefs.sunColor.current)
+    waterMat.uniforms.uCameraPosition.value.copy(camera.position)
   })
 
   return (

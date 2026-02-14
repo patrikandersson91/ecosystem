@@ -18,6 +18,10 @@ import BloodEffects from './BloodEffects.tsx';
 import RabbitGroup from '../entities/RabbitGroup.tsx';
 import FoxGroup from '../entities/FoxGroup.tsx';
 import MooseGroup from '../entities/MooseGroup.tsx';
+import PostProcessingPipeline from './PostProcessingPipeline.tsx'
+import GroundMist from './GroundMist.tsx'
+import CascadedShadows from './CascadedShadows.tsx'
+import Lightning from './Lightning.tsx'
 import { WORLD_SIZE, WORLD_SCALE } from '../../types/ecosystem.ts';
 import {
   useEcosystem,
@@ -172,6 +176,8 @@ export default function EcosystemScene() {
         maxDistance={WORLD_SIZE * 1.8}
       />
       <FollowCameraController controlsRef={controlsRef} />
+      {/* <CascadedShadows /> */}
+      <Lightning />
       <Terrain />
       <Grass />
       <River />
@@ -182,11 +188,13 @@ export default function EcosystemScene() {
       <Bushes />
       <Stones />
       <Flowers />
+      <GroundMist />
       <RabbitGroup />
       <FoxGroup />
       <MooseGroup />
       <FlowerRegrowth />
       <ExtinctionRecorder />
+      {/* <PostProcessingPipeline /> */}
     </>
   );
 }
