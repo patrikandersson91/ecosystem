@@ -464,9 +464,9 @@ function ecosystemReducer(
 // ─── Initial State ──────────────────────────────────────────
 
 const defaultConfig: SimulationConfig = {
-  initialRabbits: 30,
+  initialRabbits: 50,
   initialFoxes: 8,
-  initialMoose: 3,
+  initialMoose: 4,
   initialFlowers: Math.floor(65 * WORLD_SCALE),
 };
 
