@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { AnimatePresence } from 'framer-motion';
 import {
   useEcosystemUI,
@@ -22,6 +23,7 @@ export default function HUD() {
   const { showIntentions, setShowIntentions } = useDebug();
   const { followTarget, stopFollowing } = useFollow();
   const [showLog, setShowLog] = useState(false);
+  const navigate = useNavigate();
 
   const followedLabel = useMemo(() => {
     if (!followTarget) return null;
@@ -170,6 +172,12 @@ export default function HUD() {
             className="cursor-pointer rounded bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20"
           >
             Restart
+          </button>
+          <button
+            onClick={() => navigate('/models')}
+            className="cursor-pointer rounded bg-white/10 px-3 py-1 text-xs text-white hover:bg-white/20"
+          >
+            Models
           </button>
         </div>
       </div>

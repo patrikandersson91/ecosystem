@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router'
 import { EcosystemProvider } from './state/ecosystem-context.tsx'
 import { SimulationLogProvider } from './state/simulation-log.tsx'
 import SimulationPage from './pages/SimulationPage.tsx'
+import ModelsPage from './pages/ModelsPage.tsx'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -12,6 +13,7 @@ createRoot(document.getElementById('root')!).render(
       <SimulationLogProvider>
         <EcosystemProvider>
           <Routes>
+            <Route path="/models" element={<ModelsPage />} />
             <Route path="*" element={<SimulationPage />} />
           </Routes>
         </EcosystemProvider>
