@@ -41,7 +41,7 @@ interface FoxProps {
 }
 
 const MATING_PAUSE_DURATION = 2.5;
-const FOX_HUNGER_RATE = 0.0011;
+const FOX_HUNGER_RATE = 0.0014;
 const FOX_THIRST_RATE = 0.01;
 const FOX_OBSTACLE_QUERY_RADIUS = 1.4;
 
@@ -269,8 +269,7 @@ export default function Fox({ id }: FoxProps) {
           const sinkY = depth > 0 ? -depth * 0.85 : 0;
           spawnBlood(pos.x, terrainY + 0.5 + sinkY, pos.z);
           dispatch({ type: 'REMOVE_RABBIT', id: nearest.id });
-          const mealValue = 0.5;
-          hungerRef.current = Math.min(1, hungerRef.current + mealValue);
+          hungerRef.current = 1;
           dispatch({
             type: 'UPDATE_ENTITY_NEEDS',
             id: id,
