@@ -322,195 +322,274 @@ export default function SkyLife() {
             position={[bird.offsetX, bird.offsetY, bird.offsetZ]}
             scale={[bird.scale, bird.scale, bird.scale]}
           >
-            <mesh castShadow>
-              <capsuleGeometry args={[0.17, 0.56, 6, 10]} />
+            {/* Main torso - horizontal brown capsule */}
+            <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+              <capsuleGeometry args={[0.17, 0.48, 6, 10]} />
               <meshStandardMaterial
-                color="#3e3f46"
-                roughness={0.84}
-                metalness={0.03}
-              />
-            </mesh>
-            <mesh position={[0.03, 0.02, 0]} castShadow>
-              <sphereGeometry args={[0.19, 12, 10]} />
-              <meshStandardMaterial
-                color="#585b66"
-                roughness={0.86}
+                color="#6b5a48"
+                roughness={0.82}
                 metalness={0.02}
               />
             </mesh>
-            <mesh position={[0.35, 0.1, 0]} castShadow>
-              <sphereGeometry args={[0.12, 10, 10]} />
+            {/* Belly - lighter tan underside */}
+            <mesh
+              position={[0.04, -0.05, 0]}
+              rotation={[0, 0, Math.PI / 2]}
+              castShadow
+            >
+              <capsuleGeometry args={[0.14, 0.34, 6, 8]} />
               <meshStandardMaterial
-                color="#484a54"
+                color="#c4b49a"
+                roughness={0.8}
+                metalness={0.01}
+              />
+            </mesh>
+            {/* Back - darker brown upper plumage */}
+            <mesh
+              position={[-0.02, 0.07, 0]}
+              rotation={[0, 0, Math.PI / 2]}
+              castShadow
+            >
+              <capsuleGeometry args={[0.13, 0.3, 6, 8]} />
+              <meshStandardMaterial
+                color="#5a4a3a"
                 roughness={0.84}
+                metalness={0.02}
+              />
+            </mesh>
+            {/* Neck - black, horizontal */}
+            <mesh
+              position={[0.46, 0.0, 0]}
+              rotation={[0, 0, Math.PI / 2 + 0.1]}
+              castShadow
+            >
+              <capsuleGeometry args={[0.042, 0.34, 6, 8]} />
+              <meshStandardMaterial
+                color="#1a1c20"
+                roughness={0.78}
                 metalness={0.03}
               />
             </mesh>
-            <mesh position={[0.5, 0.09, 0]}>
-              <coneGeometry args={[0.05, 0.2, 8]} />
+            {/* Head - black */}
+            <mesh position={[0.64, 0.03, 0]} castShadow>
+              <sphereGeometry args={[0.07, 10, 10]} />
               <meshStandardMaterial
-                color="#cda678"
+                color="#1a1c20"
+                roughness={0.76}
+                metalness={0.03}
+              />
+            </mesh>
+            {/* White chinstrap - left cheek */}
+            <mesh
+              position={[0.635, 0.025, 0.05]}
+              scale={[0.75, 0.95, 0.35]}
+            >
+              <sphereGeometry args={[0.04, 8, 8]} />
+              <meshStandardMaterial
+                color="#f0ede8"
+                roughness={0.78}
+                metalness={0.01}
+              />
+            </mesh>
+            {/* White chinstrap - right cheek */}
+            <mesh
+              position={[0.635, 0.025, -0.05]}
+              scale={[0.75, 0.95, 0.35]}
+            >
+              <sphereGeometry args={[0.04, 8, 8]} />
+              <meshStandardMaterial
+                color="#f0ede8"
+                roughness={0.78}
+                metalness={0.01}
+              />
+            </mesh>
+            {/* Beak - black, pointing forward */}
+            <mesh
+              position={[0.74, 0.02, 0]}
+              rotation={[0, 0, -Math.PI / 2]}
+            >
+              <coneGeometry args={[0.025, 0.1, 8]} />
+              <meshStandardMaterial
+                color="#222222"
                 roughness={0.9}
                 metalness={0}
               />
             </mesh>
-            <mesh position={[-0.15, -0.02, 0]}>
-              <sphereGeometry args={[0.11, 10, 10]} />
+            {/* Left eye */}
+            <mesh position={[0.67, 0.055, 0.05]}>
+              <sphereGeometry args={[0.009, 6, 6]} />
               <meshStandardMaterial
-                color="#686b75"
-                roughness={0.9}
-                metalness={0.02}
+                color="#111111"
+                roughness={0.5}
+                metalness={0.1}
               />
             </mesh>
+            {/* Right eye */}
+            <mesh position={[0.67, 0.055, -0.05]}>
+              <sphereGeometry args={[0.009, 6, 6]} />
+              <meshStandardMaterial
+                color="#111111"
+                roughness={0.5}
+                metalness={0.1}
+              />
+            </mesh>
+            {/* White rump/undertail coverts */}
+            <mesh position={[-0.28, -0.02, 0]}>
+              <sphereGeometry args={[0.08, 8, 8]} />
+              <meshStandardMaterial
+                color="#f0ede8"
+                roughness={0.82}
+                metalness={0.01}
+              />
+            </mesh>
+            {/* Left Wing - wide overlapping panels */}
             <group
               ref={(el) => {
                 leftWingRefs.current[i] = el;
               }}
-              position={[0.02, 0.04, 0.23]}
-              rotation={[0.05, 0.05, 0.08]}
+              position={[-0.02, 0.03, 0.17]}
+              rotation={[0.04, 0.03, 0.06]}
             >
-              <mesh castShadow>
-                <cylinderGeometry args={[0.016, 0.05, 0.32, 8]} />
+              {/* Wing root/shoulder */}
+              <mesh position={[0.02, 0, 0.06]} castShadow>
+                <boxGeometry args={[0.4, 0.022, 0.2]} />
                 <meshStandardMaterial
-                  color="#4d525e"
+                  color="#8a7560"
+                  roughness={0.84}
+                  metalness={0.01}
+                />
+              </mesh>
+              {/* Mid coverts */}
+              <mesh
+                position={[0, 0.003, 0.22]}
+                rotation={[0, 0, 0.05]}
+                castShadow
+              >
+                <boxGeometry args={[0.5, 0.018, 0.2]} />
+                <meshStandardMaterial
+                  color="#7a6952"
                   roughness={0.86}
-                  metalness={0.03}
-                />
-              </mesh>
-              <mesh
-                position={[0.05, 0, 0.17]}
-                rotation={[0, 0, 0.2]}
-                castShadow
-              >
-                <boxGeometry args={[0.5, 0.012, 0.095]} />
-                <meshStandardMaterial
-                  color="#5f6470"
-                  roughness={0.9}
                   metalness={0.01}
                 />
               </mesh>
+              {/* Secondaries */}
               <mesh
-                position={[0.03, 0, 0.3]}
-                rotation={[0, 0, 0.08]}
+                position={[-0.03, 0.005, 0.38]}
+                rotation={[0, 0, -0.02]}
                 castShadow
               >
-                <boxGeometry args={[0.62, 0.01, 0.07]} />
+                <boxGeometry args={[0.56, 0.014, 0.16]} />
                 <meshStandardMaterial
-                  color="#636a76"
-                  roughness={0.9}
-                  metalness={0.01}
+                  color="#5a4a3a"
+                  roughness={0.88}
+                  metalness={0}
                 />
               </mesh>
+              {/* Primaries / wingtips - dark */}
               <mesh
-                position={[-0.02, 0, 0.42]}
-                rotation={[0, 0, -0.03]}
+                position={[-0.06, 0.006, 0.52]}
+                rotation={[0, 0, -0.08]}
                 castShadow
               >
-                <boxGeometry args={[0.7, 0.009, 0.052]} />
+                <boxGeometry args={[0.44, 0.01, 0.14]} />
                 <meshStandardMaterial
-                  color="#6c7380"
+                  color="#2a2420"
                   roughness={0.92}
                   metalness={0}
                 />
               </mesh>
-              <mesh
-                position={[-0.08, 0, 0.52]}
-                rotation={[0, 0, -0.12]}
-                castShadow
-              >
-                <boxGeometry args={[0.76, 0.008, 0.042]} />
-                <meshStandardMaterial
-                  color="#757d8b"
-                  roughness={0.94}
-                  metalness={0}
-                />
-              </mesh>
             </group>
+            {/* Right Wing - wide overlapping panels */}
             <group
               ref={(el) => {
                 rightWingRefs.current[i] = el;
               }}
-              position={[0.02, 0.04, -0.23]}
-              rotation={[-0.05, -0.05, -0.08]}
+              position={[-0.02, 0.03, -0.17]}
+              rotation={[-0.04, -0.03, -0.06]}
             >
-              <mesh castShadow>
-                <cylinderGeometry args={[0.016, 0.05, 0.32, 8]} />
+              {/* Wing root/shoulder */}
+              <mesh position={[0.02, 0, -0.06]} castShadow>
+                <boxGeometry args={[0.4, 0.022, 0.2]} />
                 <meshStandardMaterial
-                  color="#4d525e"
+                  color="#8a7560"
+                  roughness={0.84}
+                  metalness={0.01}
+                />
+              </mesh>
+              {/* Mid coverts */}
+              <mesh
+                position={[0, 0.003, -0.22]}
+                rotation={[0, 0, -0.05]}
+                castShadow
+              >
+                <boxGeometry args={[0.5, 0.018, 0.2]} />
+                <meshStandardMaterial
+                  color="#7a6952"
                   roughness={0.86}
-                  metalness={0.03}
-                />
-              </mesh>
-              <mesh
-                position={[0.05, 0, -0.17]}
-                rotation={[0, 0, -0.2]}
-                castShadow
-              >
-                <boxGeometry args={[0.5, 0.012, 0.095]} />
-                <meshStandardMaterial
-                  color="#5f6470"
-                  roughness={0.9}
                   metalness={0.01}
                 />
               </mesh>
+              {/* Secondaries */}
               <mesh
-                position={[0.03, 0, -0.3]}
-                rotation={[0, 0, -0.08]}
+                position={[-0.03, 0.005, -0.38]}
+                rotation={[0, 0, 0.02]}
                 castShadow
               >
-                <boxGeometry args={[0.62, 0.01, 0.07]} />
+                <boxGeometry args={[0.56, 0.014, 0.16]} />
                 <meshStandardMaterial
-                  color="#636a76"
-                  roughness={0.9}
-                  metalness={0.01}
+                  color="#5a4a3a"
+                  roughness={0.88}
+                  metalness={0}
                 />
               </mesh>
+              {/* Primaries / wingtips - dark */}
               <mesh
-                position={[-0.02, 0, -0.42]}
-                rotation={[0, 0, 0.03]}
+                position={[-0.06, 0.006, -0.52]}
+                rotation={[0, 0, 0.08]}
                 castShadow
               >
-                <boxGeometry args={[0.7, 0.009, 0.052]} />
+                <boxGeometry args={[0.44, 0.01, 0.14]} />
                 <meshStandardMaterial
-                  color="#6c7380"
+                  color="#2a2420"
                   roughness={0.92}
                   metalness={0}
                 />
               </mesh>
-              <mesh
-                position={[-0.08, 0, -0.52]}
-                rotation={[0, 0, 0.12]}
-                castShadow
-              >
-                <boxGeometry args={[0.76, 0.008, 0.042]} />
-                <meshStandardMaterial
-                  color="#757d8b"
-                  roughness={0.94}
-                  metalness={0}
-                />
-              </mesh>
             </group>
+            {/* Tail feathers - black, pointing backward */}
             <mesh
-              position={[-0.32, 0.03, 0.09]}
-              rotation={[0.2, 0.16, -0.45]}
+              position={[-0.35, 0.01, 0.05]}
+              rotation={[0.12, 0, Math.PI / 2]}
               castShadow
             >
-              <coneGeometry args={[0.032, 0.24, 7]} />
+              <coneGeometry args={[0.022, 0.18, 7]} />
               <meshStandardMaterial
-                color="#343740"
-                roughness={0.9}
+                color="#1e1e22"
+                roughness={0.88}
                 metalness={0.02}
               />
             </mesh>
             <mesh
-              position={[-0.32, 0.03, -0.09]}
-              rotation={[-0.2, -0.16, -0.45]}
+              position={[-0.36, 0.01, 0]}
+              rotation={[0, 0, Math.PI / 2]}
               castShadow
             >
-              <coneGeometry args={[0.032, 0.24, 7]} />
+              <coneGeometry args={[0.024, 0.2, 7]} />
               <meshStandardMaterial
-                color="#343740"
-                roughness={0.9}
+                color="#1a1c20"
+                roughness={0.88}
+                metalness={0.02}
+              />
+            </mesh>
+            <mesh
+              position={[-0.35, 0.01, -0.05]}
+              rotation={[-0.12, 0, Math.PI / 2]}
+              castShadow
+            >
+              <coneGeometry args={[0.022, 0.18, 7]} />
+              <meshStandardMaterial
+                color="#1e1e22"
+                roughness={0.88}
                 metalness={0.02}
               />
             </mesh>

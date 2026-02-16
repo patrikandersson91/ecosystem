@@ -64,7 +64,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     component: BirdPreview,
     cameraDistance: 4,
     cameraTargetY: 0.8,
-    accentColor: '#585b66',
+    accentColor: '#6b5a48',
   },
   {
     id: 'conifer-tree',
