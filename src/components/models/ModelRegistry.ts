@@ -100,7 +100,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     id: 'stone',
     name: 'Stone',
     category: 'Environment',
-    description: 'Boulder with angular accent rocks.',
+    description: 'Craggy boulders and angular rocks scattered across the terrain.',
     component: StonePreview,
     cameraDistance: 2.5,
     cameraTargetY: 0.2,
