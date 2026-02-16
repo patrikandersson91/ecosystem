@@ -11,8 +11,8 @@ export default function BirdPreview() {
   useFrame((_, delta) => {
     phase.current += delta * 4;
     const flap = Math.sin(phase.current) * 0.66;
-    leftWingRef.current.rotation.z = flap;
-    rightWingRef.current.rotation.z = -flap;
+    leftWingRef.current.rotation.x = -flap;
+    rightWingRef.current.rotation.x = flap;
 
     groupRef.current.position.y = 0.8 + Math.sin(phase.current * 0.5) * 0.1;
     groupRef.current.rotation.y += delta * 0.3;
@@ -78,7 +78,7 @@ export default function BirdPreview() {
       </mesh>
 
       {/* Left Wing - wide overlapping panels */}
-      <group ref={leftWingRef} position={[-0.02, 0.03, 0.17]} rotation={[0.04, 0.03, 0.06]}>
+      <group ref={leftWingRef} position={[-0.02, 0.03, 0.17]} rotation={[0, 0.03, 0.04]}>
         {/* Wing root/shoulder */}
         <mesh position={[0.02, 0, 0.06]} castShadow>
           <boxGeometry args={[0.4, 0.022, 0.2]} />
@@ -102,7 +102,7 @@ export default function BirdPreview() {
       </group>
 
       {/* Right Wing - wide overlapping panels */}
-      <group ref={rightWingRef} position={[-0.02, 0.03, -0.17]} rotation={[-0.04, -0.03, -0.06]}>
+      <group ref={rightWingRef} position={[-0.02, 0.03, -0.17]} rotation={[0, -0.03, -0.04]}>
         {/* Wing root/shoulder */}
         <mesh position={[0.02, 0, -0.06]} castShadow>
           <boxGeometry args={[0.4, 0.022, 0.2]} />

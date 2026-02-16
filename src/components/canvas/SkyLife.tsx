@@ -273,8 +273,8 @@ export default function SkyLife() {
           ) * 0.66;
         const leftWing = leftWingRefs.current[i];
         const rightWing = rightWingRefs.current[i];
-        if (leftWing) leftWing.rotation.z = flap;
-        if (rightWing) rightWing.rotation.z = -flap;
+        if (leftWing) leftWing.rotation.x = -flap;
+        if (rightWing) rightWing.rotation.x = flap;
       }
     }
 
@@ -448,7 +448,7 @@ export default function SkyLife() {
                 leftWingRefs.current[i] = el;
               }}
               position={[-0.02, 0.03, 0.17]}
-              rotation={[0.04, 0.03, 0.06]}
+              rotation={[0, 0.03, 0.04]}
             >
               {/* Wing root/shoulder */}
               <mesh position={[0.02, 0, 0.06]} castShadow>
@@ -505,7 +505,7 @@ export default function SkyLife() {
                 rightWingRefs.current[i] = el;
               }}
               position={[-0.02, 0.03, -0.17]}
-              rotation={[-0.04, -0.03, -0.06]}
+              rotation={[0, -0.03, -0.04]}
             >
               {/* Wing root/shoulder */}
               <mesh position={[0.02, 0, -0.06]} castShadow>
